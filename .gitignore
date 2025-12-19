@@ -25,3 +25,8 @@ auth_key.txt
 *.njsproj
 *.sln
 *.sw?
+
+
+auth_key.txt
+convex_jwt_key.pem
+.env.local
