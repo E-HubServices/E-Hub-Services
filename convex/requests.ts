@@ -45,7 +45,7 @@ export const createServiceRequest = mutation({
 
     // Create system message
     await ctx.db.insert("messages", {
-      requestId,
+      serviceRequestId: requestId,
       senderId: userId,
       text: "Service request created successfully." + (inputFiles.length > 0 ? ` Included ${inputFiles.length} document(s).` : " Please upload required documents."),
       messageType: "system",
@@ -55,7 +55,7 @@ export const createServiceRequest = mutation({
     // If there are input files, create a message for them specifically so they appear in chat
     if (inputFiles.length > 0) {
       await ctx.db.insert("messages", {
-        requestId,
+        serviceRequestId: requestId,
         senderId: userId,
         text: `Initial documents uploaded (${inputFiles.length}).`,
         attachments: inputFiles,
@@ -261,7 +261,7 @@ export const assignRequest = mutation({
 
     // Create system message
     await ctx.db.insert("messages", {
-      requestId: args.requestId,
+      serviceRequestId: args.requestId,
       senderId: userId,
       text: `Request assigned to ${user.name}. Work will begin shortly.`,
       messageType: "system",
@@ -322,7 +322,7 @@ export const updateRequestStatus = mutation({
     };
 
     await ctx.db.insert("messages", {
-      requestId: args.requestId,
+      serviceRequestId: args.requestId,
       senderId: userId,
       text: statusMessages[args.status] + (args.notes ? ` Note: ${args.notes}` : ""),
       messageType: "status_update",
@@ -405,7 +405,7 @@ export const addInputFiles = mutation({
 
     // Create message about file upload
     await ctx.db.insert("messages", {
-      requestId: args.requestId,
+      serviceRequestId: args.requestId,
       senderId: userId,
       text: `Uploaded ${args.fileIds.length} document(s).`,
       attachments: args.fileIds,
@@ -438,7 +438,7 @@ export const setOutputFile = mutation({
 
     // Create message about output file
     await ctx.db.insert("messages", {
-      requestId: args.requestId,
+      serviceRequestId: args.requestId,
       senderId: userId,
       text: "Final document has been uploaded and is ready for download.",
       attachments: [args.fileId],
