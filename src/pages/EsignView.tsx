@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -16,10 +17,14 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { Id } from "../../convex/_generated/dataModel";
+import ChatBox from "@/components/chat/ChatBox";
+import { cn } from "@/lib/utils";
+import { X, MessageSquare } from "lucide-react";
 
 const EsignView = () => {
     const { requestId } = useParams<{ requestId: string }>();
     const navigate = useNavigate();
+    const [numPages, setNumPages] = useState<number | null>(null);
 
     const request = useQuery(api.esign.getEsignRequestById, {
         requestId: requestId as Id<"esign_requests">
@@ -28,6 +33,12 @@ const EsignView = () => {
     const auditLogs = useQuery(api.esign.getAuditLogs, {
         requestId: requestId as Id<"esign_requests">
     });
+
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const user = useQuery(api.users.getProfile);
+    const unreadCount = useQuery(api.messages.getRequestUnreadCount,
+        requestId ? { esignRequestId: requestId as Id<"esign_requests"> } : "skip"
+    );
 
     const fileUrl = useQuery(api.files.getFileUrl,
         request?.signedFileId ? { storageId: request.signedFileId } :
@@ -53,11 +64,14 @@ const EsignView = () => {
             <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
                 <div className="container flex items-center justify-between h-20">
                     <div className="flex items-center gap-4">
-                        <Link to="/esign">
-                            <Button variant="ghost" size="icon" className="rounded-xl">
-                                <ArrowLeft className="h-5 w-5 text-slate-600" />
-                            </Button>
-                        </Link>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-xl hover:bg-slate-100"
+                            onClick={() => navigate(-1)}
+                        >
+                            <ArrowLeft className="h-5 w-5 text-slate-600" />
+                        </Button>
                         <div className="flex flex-col">
                             <h1 className="text-xl font-black text-slate-900 tracking-tight leading-none uppercase">Endorsement Record</h1>
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Request ID: {request._id.slice(-8)}</span>
@@ -141,8 +155,8 @@ const EsignView = () => {
                                                 <div className="absolute left-[23px] top-8 bottom-[-12px] w-px bg-slate-200" />
                                             )}
                                             <div className={`w-5 h-5 rounded-full z-10 shrink-0 mt-1 border-2 border-white shadow-sm ${log.action === 'SIGNED' ? 'bg-india-green' :
-                                                    log.action === 'ACCEPTED' ? 'bg-primary' :
-                                                        log.action === 'REJECTED' ? 'bg-red-500' : 'bg-slate-300'
+                                                log.action === 'ACCEPTED' ? 'bg-primary' :
+                                                    log.action === 'REJECTED' ? 'bg-red-500' : 'bg-slate-300'
                                                 }`} />
                                             <div className="flex-1 pb-4">
                                                 <div className="flex items-center justify-between mb-1">
@@ -211,6 +225,42 @@ const EsignView = () => {
                     </div>
                 </div>
             </main>
+
+            {/* Floating Chat UI */}
+            {user && (
+                <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 text-slate-950">
+                    {isChatOpen && (
+                        <div className="w-[350px] shadow-2xl animate-in slide-in-from-bottom-5 duration-300">
+                            <ChatBox
+                                esignRequestId={request._id}
+                                currentUserRole={user.role as "customer" | "shop_owner" | "authorized_signatory"}
+                            />
+                        </div>
+                    )}
+
+                    <Button
+                        size="icon"
+                        className={cn(
+                            "h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90 relative",
+                            isChatOpen ? "bg-slate-950 hover:bg-slate-800" : "bg-primary hover:bg-primary/90"
+                        )}
+                        onClick={() => setIsChatOpen(!isChatOpen)}
+                    >
+                        {isChatOpen ? (
+                            <X className="h-6 w-6 text-white" />
+                        ) : (
+                            <MessageSquare className="h-6 w-6 text-slate-950" />
+                        )}
+
+                        {/* Unread Dot */}
+                        {!isChatOpen && unreadCount && unreadCount > 0 ? (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-bounce">
+                                {unreadCount}
+                            </span>
+                        ) : null}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };

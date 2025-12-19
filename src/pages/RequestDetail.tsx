@@ -59,7 +59,7 @@ const RequestDetail = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
 
     const unreadCount = useQuery(api.messages.getRequestUnreadCount,
-        requestId ? { requestId: requestId as Id<"service_requests"> } : "skip"
+        requestId ? { serviceRequestId: requestId as Id<"service_requests"> } : "skip"
     );
 
     const handleLogout = async () => {
@@ -445,7 +445,7 @@ const RequestDetail = () => {
                         {isChatOpen && (
                             <div className="w-[350px] shadow-2xl animate-in slide-in-from-bottom-5 duration-300">
                                 <ChatBox
-                                    requestId={request._id}
+                                    serviceRequestId={request._id}
                                     currentUserRole={user.role as "customer" | "shop_owner"}
                                 />
                             </div>

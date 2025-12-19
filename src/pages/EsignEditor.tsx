@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
+import ChatBox from "@/components/chat/ChatBox";
+import { cn } from "@/lib/utils";
+import { X, MessageSquare } from "lucide-react";
 
 // Set worker for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
@@ -50,6 +53,12 @@ const EsignEditor = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const signatureRef = useRef<HTMLDivElement>(null);
     const sealRef = useRef<HTMLDivElement>(null);
+    const [isChatOpen, setIsChatOpen] = useState(false);
+
+    const user = useQuery(api.users.getProfile);
+    const unreadCount = useQuery(api.messages.getRequestUnreadCount,
+        requestId ? { esignRequestId: requestId as Id<"esign_requests"> } : "skip"
+    );
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
         setNumPages(numPages);
@@ -154,9 +163,14 @@ const EsignEditor = () => {
         <div className="h-screen bg-slate-900 flex flex-col overflow-hidden text-slate-100">
             <header className="h-20 bg-slate-950 border-b border-white/5 px-8 flex items-center justify-between z-10 shadow-2xl">
                 <div className="flex items-center gap-6">
-                    <Link to="/esign" className="p-2 hover:bg-white/5 rounded-xl transition-colors">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-xl hover:bg-white/5"
+                        onClick={() => navigate(-1)}
+                    >
                         <ArrowLeft className="h-5 w-5 text-slate-400" />
-                    </Link>
+                    </Button>
                     <div className="h-8 w-px bg-white/10" />
                     <div className="flex flex-col">
                         <div className="flex items-center gap-3">
@@ -398,6 +412,42 @@ const EsignEditor = () => {
                     </div>
                 </aside>
             </main>
+
+            {/* Floating Chat UI */}
+            {user && (
+                <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 text-slate-950">
+                    {isChatOpen && (
+                        <div className="w-[350px] shadow-2xl animate-in slide-in-from-bottom-5 duration-300">
+                            <ChatBox
+                                esignRequestId={request._id}
+                                currentUserRole={user.role as "customer" | "shop_owner" | "authorized_signatory"}
+                            />
+                        </div>
+                    )}
+
+                    <Button
+                        size="icon"
+                        className={cn(
+                            "h-14 w-14 rounded-full shadow-2xl transition-all active:scale-90 relative",
+                            isChatOpen ? "bg-slate-950 hover:bg-slate-800" : "bg-primary hover:bg-primary/90"
+                        )}
+                        onClick={() => setIsChatOpen(!isChatOpen)}
+                    >
+                        {isChatOpen ? (
+                            <X className="h-6 w-6 text-white" />
+                        ) : (
+                            <MessageSquare className="h-6 w-6 text-slate-950" />
+                        )}
+
+                        {/* Unread Dot */}
+                        {!isChatOpen && unreadCount && unreadCount > 0 ? (
+                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-bounce">
+                                {unreadCount}
+                            </span>
+                        ) : null}
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };

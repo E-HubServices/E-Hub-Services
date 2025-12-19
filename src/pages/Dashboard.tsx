@@ -415,10 +415,19 @@ const RequestItem = ({ request, role }: any) => {
   const status = statusConfig[request.status as keyof typeof statusConfig] || statusConfig.pending;
   const StatusIcon = status.icon;
 
+  const unreadCount = useQuery(api.messages.getRequestUnreadCount, {
+    serviceRequestId: request._id
+  });
+
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:shadow-card transition-all group">
-      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 relative">
         <FileText className="h-6 w-6 text-primary" />
+        {unreadCount && unreadCount > 0 ? (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+            {unreadCount}
+          </span>
+        ) : null}
       </div>
 
       <div className="flex-1 min-w-0">
@@ -445,8 +454,11 @@ const RequestItem = ({ request, role }: any) => {
           </Button>
         )}
         <Link to={`/request/${request._id}`}>
-          <Button variant="ghost" size="sm" className="gap-1 text-primary">
+          <Button variant="ghost" size="sm" className="gap-1 text-primary relative">
             <span className="hidden sm:inline">Details</span>
+            {unreadCount && unreadCount > 0 && (
+              <span className="absolute top-0 right-0 w-2 h-2 bg-red-600 rounded-full sm:-top-1 sm:-right-1" />
+            )}
             <ChevronRight className="h-5 w-5" />
           </Button>
         </Link>

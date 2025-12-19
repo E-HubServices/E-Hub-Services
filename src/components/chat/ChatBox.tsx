@@ -10,15 +10,20 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 interface ChatBoxProps {
-    requestId: Id<"service_requests">;
-    currentUserRole: "customer" | "shop_owner";
+    serviceRequestId?: Id<"service_requests">;
+    esignRequestId?: Id<"esign_requests">;
+    currentUserRole: "customer" | "shop_owner" | "authorized_signatory";
 }
 
-const ChatBox = ({ requestId, currentUserRole }: ChatBoxProps) => {
+const ChatBox = ({ serviceRequestId, esignRequestId, currentUserRole }: ChatBoxProps) => {
     const [newMessage, setNewMessage] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    const messages = useQuery(api.messages.getMessages, { requestId });
+    const messages = useQuery(api.messages.getMessages, {
+        serviceRequestId,
+        esignRequestId
+    });
+
     const sendMessage = useMutation(api.messages.sendMessage);
     const markAsRead = useMutation(api.messages.markAsRead);
 
@@ -28,9 +33,9 @@ const ChatBox = ({ requestId, currentUserRole }: ChatBoxProps) => {
         }
         // Mark as read when messages update
         if (messages && messages.length > 0) {
-            markAsRead({ requestId });
+            markAsRead({ serviceRequestId, esignRequestId });
         }
-    }, [messages, requestId, markAsRead]);
+    }, [messages, serviceRequestId, esignRequestId, markAsRead]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,7 +43,8 @@ const ChatBox = ({ requestId, currentUserRole }: ChatBoxProps) => {
 
         try {
             await sendMessage({
-                requestId,
+                serviceRequestId,
+                esignRequestId,
                 text: newMessage,
                 messageType: "text",
             });
@@ -57,7 +63,7 @@ const ChatBox = ({ requestId, currentUserRole }: ChatBoxProps) => {
                         <MessageSquare className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-sm">Service Chat</h3>
+                        <h3 className="font-bold text-sm">{esignRequestId ? "E-Sign Chat" : "Service Chat"}</h3>
                         <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Direct support channel</p>
                     </div>
                 </div>
@@ -92,7 +98,7 @@ const ChatBox = ({ requestId, currentUserRole }: ChatBoxProps) => {
                                         className={cn(
                                             "p-3 rounded-2xl text-sm font-medium shadow-sm",
                                             isMe
-                                                ? "bg-primary text-white rounded-tr-none"
+                                                ? "bg-primary text-slate-950 rounded-tr-none"
                                                 : "bg-white text-slate-900 border border-slate-200 rounded-tl-none"
                                         )}
                                     >
@@ -100,7 +106,7 @@ const ChatBox = ({ requestId, currentUserRole }: ChatBoxProps) => {
                                     </div>
                                     <div className="flex items-center gap-1.5 px-1">
                                         <span className="text-[10px] text-slate-400 font-black uppercase">
-                                            {isMe ? "You" : msg.senderName} • {format(msg._creationTime, "h:mm a")}
+                                            {isMe ? "You" : msg.senderName} • {format(msg._creationTime || Date.now(), "h:mm a")}
                                         </span>
                                         {isMe && msg.isRead && (
                                             <CheckCircle2 className="h-3 w-3 text-green-500" />

@@ -220,68 +220,7 @@ const EsignDashboard = () => {
                                 {filteredRequests?.map((req) => {
                                     const Status = statusConfig[req.status as keyof typeof statusConfig];
                                     return (
-                                        <Card key={req._id} className="border-none shadow-sm hover:shadow-md transition-all overflow-hidden group">
-                                            <CardContent className="p-0">
-                                                <div className="flex items-stretch flex-wrap sm:flex-nowrap">
-                                                    <div className="w-1.5 bg-slate-900 group-hover:bg-primary transition-colors" />
-                                                    <div className="p-6 flex-1 flex flex-col sm:flex-row sm:items-center gap-6">
-                                                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 shadow-inner group-hover:bg-white transition-colors">
-                                                            <FileText className="h-7 w-7 text-slate-400 group-hover:text-primary transition-colors" />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-3 mb-1">
-                                                                <h3 className="font-black text-slate-900 truncate uppercase text-lg">{req.requesterDetails.name}</h3>
-                                                                <Badge variant="outline" className={`${Status.color} font-black uppercase text-[10px] tracking-widest px-2`}>
-                                                                    <Status.icon className="h-3 w-3 mr-1" />
-                                                                    {Status.label}
-                                                                </Badge>
-                                                            </div>
-                                                            <p className="text-sm font-bold text-slate-400 truncate mb-2">{req.purpose}</p>
-                                                            <div className="flex items-center gap-4 text-xs font-black text-slate-400 uppercase tracking-tighter">
-                                                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(req.createdAt, "MMM d, yyyy")}</span>
-                                                                <span className="flex items-center gap-1 text-primary"><Smartphone className="h-3 w-3" /> {req.requesterDetails.mobile}</span>
-                                                                <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> ID: {req._id.slice(-6)}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {req.status === "signed" ? (
-                                                                <Button
-                                                                    className="bg-india-green hover:bg-india-green text-white shadow-xl shadow-green-500/20 font-black uppercase text-xs px-6 rounded-xl"
-                                                                    onClick={() => req.signedFileId && navigate(`/esign/view/${req._id}`)}
-                                                                >
-                                                                    <Download className="h-4 w-4 mr-2" /> Download Signed PDF
-                                                                </Button>
-                                                            ) : isAuthorized && req.status === "pending" ? (
-                                                                <Button
-                                                                    className="bg-primary hover:bg-primary text-slate-950 shadow-xl shadow-primary/20 font-black uppercase text-xs px-6 rounded-xl"
-                                                                    onClick={() => navigate(`/esign/editor/${req._id}`)}
-                                                                >
-                                                                    <Shield className="h-4 w-4 mr-2" /> Verify & Accept
-                                                                </Button>
-                                                            ) : isAuthorized && req.status === "accepted" ? (
-                                                                <Button
-                                                                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-xl font-black uppercase text-xs px-6 rounded-xl border-l-4 border-l-primary"
-                                                                    onClick={() => navigate(`/esign/editor/${req._id}`)}
-                                                                >
-                                                                    <Shield className="h-4 w-4 mr-2 text-primary" /> Proceed to Sign
-                                                                </Button>
-                                                            ) : (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    className="font-black uppercase text-xs text-slate-400 hover:text-slate-900"
-                                                                    onClick={() => navigate(`/esign/view/${req._id}`)}
-                                                                >
-                                                                    <Search className="h-4 w-4 mr-2" /> View Details
-                                                                </Button>
-                                                            )}
-                                                            <Button variant="ghost" size="icon" className="rounded-xl border border-slate-100">
-                                                                <ArrowRight className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
+                                        <EsignRequestItem key={req._id} req={req} Status={Status} isAuthorized={isAuthorized} navigate={navigate} />
                                     );
                                 })}
                             </div>
@@ -295,6 +234,85 @@ const EsignDashboard = () => {
                 onOpenChange={setIsRequestModalOpen}
             />
         </div >
+    );
+};
+
+const EsignRequestItem = ({ req, Status, isAuthorized, navigate }: any) => {
+    const unreadCount = useQuery(api.messages.getRequestUnreadCount, {
+        esignRequestId: req._id
+    });
+
+    return (
+        <Card key={req._id} className="border-none shadow-sm hover:shadow-md transition-all overflow-hidden group">
+            <CardContent className="p-0">
+                <div className="flex items-stretch flex-wrap sm:flex-nowrap">
+                    <div className="w-1.5 bg-slate-900 group-hover:bg-primary transition-colors" />
+                    <div className="p-6 flex-1 flex flex-col sm:flex-row sm:items-center gap-6">
+                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 shadow-inner group-hover:bg-white transition-colors relative">
+                            <FileText className="h-7 w-7 text-slate-400 group-hover:text-primary transition-colors" />
+                            {unreadCount && unreadCount > 0 ? (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                    {unreadCount}
+                                </span>
+                            ) : null}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3 mb-1">
+                                <h3 className="font-black text-slate-900 truncate uppercase text-lg">{req.requesterDetails.name}</h3>
+                                <Badge variant="outline" className={`${Status.color} font-black uppercase text-[10px] tracking-widest px-2`}>
+                                    <Status.icon className="h-3 w-3 mr-1" />
+                                    {Status.label}
+                                </Badge>
+                            </div>
+                            <p className="text-sm font-bold text-slate-400 truncate mb-2">{req.purpose}</p>
+                            <div className="flex items-center gap-4 text-xs font-black text-slate-400 uppercase tracking-tighter">
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(req.createdAt, "MMM d, yyyy")}</span>
+                                <span className="flex items-center gap-1 text-primary"><Smartphone className="h-3 w-3" /> {req.requesterDetails.mobile}</span>
+                                <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> ID: {req._id.slice(-6)}</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {req.status === "signed" ? (
+                                <Button
+                                    className="bg-india-green hover:bg-india-green text-white shadow-xl shadow-green-500/20 font-black uppercase text-xs px-6 rounded-xl"
+                                    onClick={() => req.signedFileId && navigate(`/esign/view/${req._id}`)}
+                                >
+                                    <Download className="h-4 w-4 mr-2" /> Download Signed PDF
+                                </Button>
+                            ) : isAuthorized && req.status === "pending" ? (
+                                <Button
+                                    className="bg-primary hover:bg-primary text-slate-950 shadow-xl shadow-primary/20 font-black uppercase text-xs px-6 rounded-xl"
+                                    onClick={() => navigate(`/esign/editor/${req._id}`)}
+                                >
+                                    <Shield className="h-4 w-4 mr-2" /> Verify & Accept
+                                </Button>
+                            ) : isAuthorized && req.status === "accepted" ? (
+                                <Button
+                                    className="bg-slate-900 hover:bg-slate-800 text-white shadow-xl font-black uppercase text-xs px-6 rounded-xl border-l-4 border-l-primary"
+                                    onClick={() => navigate(`/esign/editor/${req._id}`)}
+                                >
+                                    <Shield className="h-4 w-4 mr-2 text-primary" /> Proceed to Sign
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="ghost"
+                                    className="font-black uppercase text-xs text-slate-400 hover:text-slate-900 relative"
+                                    onClick={() => navigate(`/esign/view/${req._id}`)}
+                                >
+                                    <Search className="h-4 w-4 mr-2" /> View Details
+                                    {unreadCount && unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-600 rounded-full" />
+                                    )}
+                                </Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="rounded-xl border border-slate-100" onClick={() => navigate(`/esign/view/${req._id}`)}>
+                                <ArrowRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
 };
 

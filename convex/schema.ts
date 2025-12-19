@@ -87,7 +87,8 @@ const applicationTables = {
 
   // Real-time chat messages
   messages: defineTable({
-    requestId: v.id("service_requests"),
+    serviceRequestId: v.optional(v.id("service_requests")),
+    esignRequestId: v.optional(v.id("esign_requests")),
     senderId: v.id("users"),
     text: v.optional(v.string()),
     attachments: v.optional(v.array(v.id("_storage"))),
@@ -99,7 +100,8 @@ const applicationTables = {
     ),
     isRead: v.boolean(),
   })
-    .index("by_request", ["requestId"])
+    .index("by_service_request", ["serviceRequestId"])
+    .index("by_esign_request", ["esignRequestId"])
     .index("by_sender", ["senderId"]),
 
   // File metadata for better tracking
