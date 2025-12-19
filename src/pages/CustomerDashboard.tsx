@@ -139,26 +139,32 @@ const CustomerDashboard = () => {
                                 </Link>
 
                                 <div className="flex items-center gap-4">
-                                    <div className="h-8 w-px bg-border hidden sm:block" />
-                                    <div className="flex items-center gap-2">
-                                        <div className="relative mr-2">
-                                            <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">
-                                                <MessageSquare className="h-5 w-5 text-slate-400" />
-                                            </div>
-                                            {unreadCount && unreadCount > 0 ? (
-                                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-pulse">
-                                                    {unreadCount}
-                                                </span>
-                                            ) : null}
+                                    <div className="h-8 w-px bg-slate-200 hidden sm:block mx-1" />
+                                    <div className="relative group mr-2">
+                                        <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center border border-slate-100 shadow-sm cursor-help" title="Chat is available within each request">
+                                            <MessageSquare className="h-5 w-5 text-slate-400" />
                                         </div>
-                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <User className="h-4 w-4 text-primary" />
+                                        {unreadCount && unreadCount > 0 ? (
+                                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-pulse">
+                                                {unreadCount}
+                                            </span>
+                                        ) : null}
+                                        {/* Tooltip on hover */}
+                                        <div className="absolute top-12 right-0 w-48 bg-slate-900 text-white text-[10px] font-black p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-2xl uppercase tracking-widest leading-relaxed">
+                                            Click on "Details" in any request below to open the chat.
                                         </div>
-                                        <span className="text-sm font-black text-slate-900 hidden sm:block">{user.name || 'User'}</span>
                                     </div>
-                                    <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-muted-foreground">
+                                    <Link to="/profile" className="flex items-center gap-3 hover:bg-slate-50 p-1.5 rounded-2xl transition-all border border-transparent hover:border-slate-100 group">
+                                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors">
+                                            <User className="h-4 w-4 text-primary group-hover:text-white" />
+                                        </div>
+                                        <div className="hidden sm:flex flex-col items-start leading-none">
+                                            <span className="text-[10px] font-black text-slate-400 mb-0.5 uppercase tracking-widest">My Account</span>
+                                            <span className="text-sm font-black text-slate-900">{user.name || 'User'}</span>
+                                        </div>
+                                    </Link>
+                                    <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50">
                                         <LogOut className="h-4 w-4" />
-                                        <span className="hidden sm:inline">Logout</span>
                                     </Button>
                                 </div>
                             </div>
@@ -333,26 +339,35 @@ const RequestItem = ({ request, role }: any) => {
         request.outputFile ? { storageId: request.outputFile, requestId: request._id } : "skip"
     );
 
+    const unreadCount = useQuery(api.messages.getRequestUnreadCount, {
+        serviceRequestId: request._id
+    });
+
     return (
         <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:shadow-card transition-all group">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 relative">
                 <FileText className="h-6 w-6 text-primary" />
+                {unreadCount && unreadCount > 0 ? (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                        {unreadCount}
+                    </span>
+                ) : null}
             </div>
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-foreground truncate">
+                    <span className="font-medium text-foreground truncate uppercase text-sm font-black">
                         {request?.service?.name || "Unknown Service"}
                     </span>
-                    <Badge variant="outline" className={status.color}>
+                    <Badge variant="outline" className={`${status.color} font-black uppercase text-[10px] tracking-widest`}>
                         <StatusIcon className="h-3 w-3 mr-1" />
                         {status.label}
                     </Badge>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-tighter">
                     <span>{role === "customer" ? `Ref: ${request._id.slice(-6)}` : `Customer: ${request.customer?.name}`}</span>
-                    <span className="hidden sm:inline">•</span>
-                    <span className="hidden sm:inline">{new Date(request._creationTime).toLocaleDateString()}</span>
+                    <span className="h-1 w-1 rounded-full bg-slate-100" />
+                    <span>{new Date(request._creationTime).toLocaleDateString()}</span>
                 </div>
             </div>
 
@@ -361,17 +376,20 @@ const RequestItem = ({ request, role }: any) => {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1 hidden sm:flex text-india-green border-india-green hover:bg-india-green hover:text-white"
+                        className="gap-1 hidden sm:flex text-india-green border-india-green hover:bg-india-green hover:text-white font-black uppercase text-[10px]"
                         onClick={() => downloadFromUrl(getFileUrl!, `${request?.service?.name || "Service"}_Result.pdf`)}
                         disabled={!getFileUrl}
                     >
-                        <Download className="h-4 w-4" /> Download
+                        <Download className="h-3 w-3" /> Download
                     </Button>
                 )}
                 <Link to={`/request/${request._id}`}>
-                    <Button variant="outline" size="sm" className="gap-1 text-primary border-primary/20 hover:bg-primary/5">
+                    <Button variant="outline" size="sm" className="h-10 px-4 gap-2 text-primary border-primary/20 hover:bg-primary hover:text-slate-950 font-black uppercase text-[10px] transition-all rounded-xl relative shadow-sm hover:shadow-primary/20">
                         <span className="hidden sm:inline">Details</span>
                         <ChevronRight className="h-4 w-4" />
+                        {unreadCount && unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white" />
+                        )}
                     </Button>
                 </Link>
             </div>
@@ -398,14 +416,6 @@ const QuickActions = ({ onTrack }: { onTrack: () => void }) => (
                     New Document Request
                 </Button>
             </Link>
-            <Button
-                variant="outline"
-                onClick={onTrack}
-                className="w-full justify-start gap-3 h-12 font-bold border-slate-100 hover:bg-slate-50 hover:border-primary/20 transition-all rounded-xl group text-slate-700"
-            >
-                <Search className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
-                Track Existing Request
-            </Button>
             <Button variant="outline" className="w-full justify-start gap-3 h-12 font-bold border-slate-100 hover:bg-slate-50 hover:border-primary/20 transition-all rounded-xl group text-slate-700">
                 <MessageSquare className="h-4 w-4 text-primary group-hover:scale-110 transition-transform" />
                 Contact Support
@@ -422,11 +432,19 @@ const QuickActions = ({ onTrack }: { onTrack: () => void }) => (
 );
 
 const HelpCard = () => (
-    <Card className="border-border/50 bg-gradient-saffron text-primary-foreground">
-        <CardContent className="pt-6">
-            <h3 className="font-heading font-semibold mb-2">Need Help?</h3>
-            <p className="text-sm text-primary-foreground/80 mb-4">Our support team is available 24/7 to assist you with your document needs.</p>
-            <Button size="sm" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90">Get Support</Button>
+    <Card className="border-none bg-slate-900 text-white rounded-3xl overflow-hidden relative group">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-primary/30 transition-all" />
+        <CardContent className="pt-8 pb-8 relative z-10">
+            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 border border-white/10 group-hover:scale-110 transition-transform">
+                <Shield className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-2xl font-black mb-3 text-white uppercase tracking-tight">Need Help?</h3>
+            <p className="text-sm text-slate-400 font-bold mb-8 leading-relaxed">
+                Our support team is available <span className="text-primary italic">24/7</span> to assist you with your document needs.
+            </p>
+            <Button className="w-full h-12 bg-primary hover:bg-primary text-slate-950 font-black uppercase text-xs tracking-widest rounded-xl shadow-xl shadow-primary/10 hover:-translate-y-1 transition-all">
+                Get Support
+            </Button>
         </CardContent>
     </Card>
 );
