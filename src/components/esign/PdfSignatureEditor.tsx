@@ -15,7 +15,8 @@ import {
     Move,
     Loader2,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Maximize2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -55,7 +56,9 @@ const PdfSignatureEditor = ({
     const [isDrawing, setIsDrawing] = useState(false);
     const [signatures, setSignatures] = useState<SignaturePlacement[]>([]);
     const [draggedSignature, setDraggedSignature] = useState<string | null>(null);
+    const [resizingSignature, setResizingSignature] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+    const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
     const signatureCanvasRef = useRef<SignatureCanvas>(null);
     const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -73,36 +76,26 @@ const PdfSignatureEditor = ({
         const canvas = signatureCanvasRef.current?.getCanvas();
         if (!canvas) return null;
 
-        // Create a new canvas for processing
         const processCanvas = document.createElement('canvas');
         processCanvas.width = canvas.width;
         processCanvas.height = canvas.height;
         const ctx = processCanvas.getContext('2d');
         if (!ctx) return null;
 
-        // Draw original signature
         ctx.drawImage(canvas, 0, 0);
-
-        // Get image data
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
 
-        // Make white pixels transparent
         for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
-
-            // If pixel is close to white, make it transparent
             if (r > 250 && g > 250 && b > 250) {
-                data[i + 3] = 0; // Set alpha to 0
+                data[i + 3] = 0;
             }
         }
 
-        // Put processed image back
         ctx.putImageData(imageData, 0, 0);
-
-        // Return as PNG data URL
         return processCanvas.toDataURL('image/png');
     };
 
@@ -114,7 +107,6 @@ const PdfSignatureEditor = ({
         const dataUrl = createTransparentSignature();
         if (!dataUrl) return;
 
-        // Add signature to center of current page
         const newSignature: SignaturePlacement = {
             id: `sig-${Date.now()}`,
             dataUrl,
@@ -136,6 +128,7 @@ const PdfSignatureEditor = ({
 
     const handleMouseDown = (e: React.MouseEvent, signatureId: string) => {
         e.preventDefault();
+        e.stopPropagation();
         const signature = signatures.find(s => s.id === signatureId);
         if (!signature) return;
 
@@ -147,22 +140,55 @@ const PdfSignatureEditor = ({
         setDraggedSignature(signatureId);
     };
 
+    const handleResizeStart = (e: React.MouseEvent, signatureId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const signature = signatures.find(s => s.id === signatureId);
+        if (!signature) return;
+
+        setResizingSignature(signatureId);
+        setResizeStart({
+            x: e.clientX,
+            y: e.clientY,
+            width: signature.width,
+            height: signature.height
+        });
+    };
+
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!draggedSignature || !pdfContainerRef.current) return;
+        if (!pdfContainerRef.current) return;
 
         const containerRect = pdfContainerRef.current.getBoundingClientRect();
-        const newX = e.clientX - containerRect.left - dragOffset.x;
-        const newY = e.clientY - containerRect.top - dragOffset.y;
 
-        setSignatures(signatures.map(sig =>
-            sig.id === draggedSignature
-                ? { ...sig, x: Math.max(0, newX), y: Math.max(0, newY) }
-                : sig
-        ));
+        if (draggedSignature) {
+            const newX = e.clientX - containerRect.left - dragOffset.x;
+            const newY = e.clientY - containerRect.top - dragOffset.y;
+
+            setSignatures(signatures.map(sig =>
+                sig.id === draggedSignature
+                    ? { ...sig, x: Math.max(0, newX), y: Math.max(0, newY) }
+                    : sig
+            ));
+        }
+
+        if (resizingSignature) {
+            const deltaX = e.clientX - resizeStart.x;
+            const deltaY = e.clientY - resizeStart.y;
+
+            setSignatures(signatures.map(sig => {
+                if (sig.id === resizingSignature) {
+                    const newWidth = Math.max(50, resizeStart.width + deltaX);
+                    const newHeight = Math.max(30, resizeStart.height + deltaY);
+                    return { ...sig, width: newWidth, height: newHeight };
+                }
+                return sig;
+            }));
+        }
     };
 
     const handleMouseUp = () => {
         setDraggedSignature(null);
+        setResizingSignature(null);
     };
 
     const handleSubmit = () => {
@@ -177,7 +203,7 @@ const PdfSignatureEditor = ({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-hidden flex flex-col p-0">
-                <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+                <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b shrink-0">
                     <DialogTitle className="text-lg sm:text-2xl font-black uppercase tracking-tight">
                         Sign Document
                     </DialogTitle>
@@ -187,11 +213,11 @@ const PdfSignatureEditor = ({
                 </DialogHeader>
 
                 {/* Mobile-Responsive Layout: Vertical Stack */}
-                <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+                <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0">
                     {/* PDF Viewer Section */}
-                    <div className="flex-1 flex flex-col bg-slate-50 lg:border-r">
+                    <div className="flex-1 flex flex-col bg-slate-50 lg:border-r min-h-0">
                         {/* PDF Controls */}
-                        <div className="p-2 sm:p-4 bg-white border-b flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4">
+                        <div className="p-2 sm:p-4 bg-white border-b flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 shrink-0">
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
@@ -241,7 +267,7 @@ const PdfSignatureEditor = ({
                             </div>
                         </div>
 
-                        {/* PDF Display */}
+                        {/* PDF Display - SCROLLABLE */}
                         <div
                             ref={pdfContainerRef}
                             className="flex-1 overflow-auto p-2 sm:p-4 lg:p-8 flex items-start justify-center relative touch-none"
@@ -268,13 +294,13 @@ const PdfSignatureEditor = ({
                                     />
                                 </Document>
 
-                                {/* Signature Overlays */}
+                                {/* Signature Overlays with Resize Handles */}
                                 {currentPageSignatures.map((sig) => (
                                     <div
                                         key={sig.id}
                                         className={cn(
                                             "absolute border-2 border-dashed border-primary cursor-move group",
-                                            draggedSignature === sig.id && "border-solid shadow-lg ring-2 ring-primary/20"
+                                            (draggedSignature === sig.id || resizingSignature === sig.id) && "border-solid shadow-lg ring-2 ring-primary/20"
                                         )}
                                         style={{
                                             left: `${sig.x}px`,
@@ -289,18 +315,33 @@ const PdfSignatureEditor = ({
                                             alt="Signature"
                                             className="w-full h-full object-contain pointer-events-none"
                                         />
+
+                                        {/* Delete Button */}
                                         <Button
                                             variant="destructive"
                                             size="icon"
-                                            className="absolute -top-2 -right-2 h-5 w-5 sm:h-6 sm:w-6 rounded-full opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                            onClick={() => handleDeleteSignature(sig.id)}
+                                            className="absolute -top-2 -right-2 h-5 w-5 sm:h-6 sm:w-6 rounded-full opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteSignature(sig.id);
+                                            }}
                                         >
                                             <X className="h-3 w-3" />
                                         </Button>
-                                        <div className="absolute -bottom-7 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
+
+                                        {/* Resize Handle */}
+                                        <div
+                                            className="absolute -bottom-2 -right-2 h-5 w-5 sm:h-6 sm:w-6 bg-primary rounded-full cursor-nwse-resize opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10 flex items-center justify-center"
+                                            onMouseDown={(e) => handleResizeStart(e, sig.id)}
+                                        >
+                                            <Maximize2 className="h-3 w-3 text-white" />
+                                        </div>
+
+                                        {/* Drag Hint */}
+                                        <div className="absolute -bottom-7 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block pointer-events-none">
                                             <span className="text-xs font-bold text-primary bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap">
                                                 <Move className="h-3 w-3 inline mr-1" />
-                                                Drag to move
+                                                Drag to move • Resize bottom-right
                                             </span>
                                         </div>
                                     </div>
@@ -309,10 +350,10 @@ const PdfSignatureEditor = ({
                         </div>
                     </div>
 
-                    {/* Signature Tools Section - Vertical on Mobile */}
-                    <div className="w-full lg:w-96 flex flex-col bg-white border-t lg:border-t-0">
-                        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 flex-1 overflow-auto">
-                            <h3 className="text-xs sm:text-sm font-black uppercase text-slate-400 tracking-widest">
+                    {/* Signature Tools Section - SCROLLABLE */}
+                    <div className="w-full lg:w-96 flex flex-col bg-white border-t lg:border-t-0 max-h-[50vh] lg:max-h-full">
+                        <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 flex-1 overflow-y-auto">
+                            <h3 className="text-xs sm:text-sm font-black uppercase text-slate-400 tracking-widest sticky top-0 bg-white pb-2">
                                 {isDrawing ? "Draw Your Signature" : "Signature Tools"}
                             </h3>
 
@@ -333,7 +374,7 @@ const PdfSignatureEditor = ({
                                                 <p className="text-xs font-bold text-slate-500">
                                                     Placed Signatures ({signatures.length})
                                                 </p>
-                                                <div className="max-h-32 overflow-y-auto space-y-2">
+                                                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                                                     {signatures.map((sig) => (
                                                         <div
                                                             key={sig.id}
@@ -406,7 +447,7 @@ const PdfSignatureEditor = ({
                         <Separator />
 
                         {/* Action Buttons */}
-                        <div className="p-4 sm:p-6 space-y-2 sm:space-y-3 bg-slate-50">
+                        <div className="p-4 sm:p-6 space-y-2 sm:space-y-3 bg-slate-50 shrink-0">
                             <Button
                                 onClick={handleSubmit}
                                 disabled={signatures.length === 0 || isSubmitting}
