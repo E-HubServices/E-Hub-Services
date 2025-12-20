@@ -99,6 +99,8 @@ const applicationTables = {
       v.literal("system")
     ),
     isRead: v.boolean(),
+    // Temporary field for cleanup
+    requestId: v.optional(v.any()),
   })
     .index("by_service_request", ["serviceRequestId"])
     .index("by_esign_request", ["esignRequestId"])

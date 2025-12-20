@@ -133,6 +133,9 @@ const ManageServices = () => {
 
     return (
         <>
+            <Unauthenticated>
+                <Navigate to="/auth" replace />
+            </Unauthenticated>
             <Authenticated>
                 <div className="min-h-screen bg-slate-50 flex flex-col">
                     {/* Header */}

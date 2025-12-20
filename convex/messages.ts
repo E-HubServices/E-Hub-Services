@@ -173,3 +173,24 @@ export const getRequestUnreadCount = query({
     return unreadMessages.length;
   },
 });
+
+// Final cleanup: Remove the legacy requestId field from all documents
+export const cleanupMessages = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const messages = await ctx.db.query("messages").collect();
+    let cleanedCount = 0;
+
+    for (const message of messages) {
+      // @ts-ignore
+      if (message.requestId !== undefined) {
+        await ctx.db.patch(message._id, {
+          // @ts-ignore
+          requestId: undefined, // Unset the field
+        });
+        cleanedCount++;
+      }
+    }
+    return { cleanedCount };
+  },
+});
