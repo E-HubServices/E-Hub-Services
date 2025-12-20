@@ -31,6 +31,7 @@ import {
     X
 } from "lucide-react";
 import { downloadFromUrl, cn } from "@/lib/utils";
+import ChatBox from "@/components/chat/ChatBox";
 import SelfDeclarationSigner from "@/components/esign/SelfDeclarationSigner";
 import { embedSignatureInPdf } from "@/lib/esign-utils";
 

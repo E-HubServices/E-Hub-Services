@@ -45,6 +45,6 @@ export async function embedSignatureInPdf(pdfUrl: string, signatureDataUrl: stri
     // 7. Serialize the PDFDocument to bytes (a Uint8Array)
     const pdfBytes = await pdfDoc.save();
 
-    // 8. Return as Blob
-    return new Blob([pdfBytes], { type: 'application/pdf' });
+    // 8. Return as Blob - convert Uint8Array to regular array to avoid type issues
+    return new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
 }
