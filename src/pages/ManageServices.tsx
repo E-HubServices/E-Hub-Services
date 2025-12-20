@@ -162,11 +162,11 @@ const ManageServices = () => {
                     {/* Header */}
                     <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
                         <div className="container flex items-center justify-between h-16">
-                            <Link to="/shop-dashboard" className="flex items-center gap-2">
+                            <Link to="/dashboard/owner" className="flex items-center gap-2">
                                 <img src="/logo.png" alt="E-Hub Logo" className="h-10 w-10 object-contain rounded-lg shadow-md bg-white border border-slate-100" />
                                 <span className="font-heading text-lg font-bold text-slate-900 tracking-tight">Manage Services</span>
                             </Link>
-                            <Link to="/shop-dashboard">
+                            <Link to="/dashboard/owner">
                                 <Button variant="ghost" size="sm" className="font-bold text-slate-700">
                                     <LayoutDashboard className="h-4 w-4 mr-2" /> Back to Dashboard
                                 </Button>
@@ -265,7 +265,7 @@ const ManageServices = () => {
 
                     {/* Create/Edit Modal */}
                     <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                        <DialogContent className="sm:max-w-[600px] bg-white rounded-3xl p-6">
+                        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto bg-white rounded-3xl p-6">
                             <DialogHeader>
                                 <DialogTitle className="text-2xl font-black text-slate-900">
                                     {editingService ? "Edit Service" : "Create New Service"}
