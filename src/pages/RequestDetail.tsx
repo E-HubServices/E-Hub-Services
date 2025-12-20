@@ -32,8 +32,8 @@ import {
 } from "lucide-react";
 import { downloadFromUrl, cn } from "@/lib/utils";
 import ChatBox from "@/components/chat/ChatBox";
-import SelfDeclarationSigner from "@/components/esign/SelfDeclarationSigner";
-import { embedSignatureInPdf } from "@/lib/esign-utils";
+import PdfSignatureEditor from "@/components/esign/PdfSignatureEditor";
+import { embedSignaturesInPdf, SignaturePlacement } from "@/lib/esign-utils";
 
 const RequestDetail = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -110,15 +110,15 @@ const RequestDetail = () => {
         }
     };
 
-    const handleSignComplete = async (signatureDataUrl: string) => {
+    const handleSignComplete = async (signatures: SignaturePlacement[]) => {
         if (!request || !unsignedFileUrl) return;
         setIsSigning(true);
         try {
-            // 1. Embed signature
-            const signedPdfBlob = await embedSignatureInPdf(unsignedFileUrl, signatureDataUrl);
+            // 1. Embed all signatures into PDF
+            const signedPdfBlob = await embedSignaturesInPdf(unsignedFileUrl, signatures);
             const signedFile = new File([signedPdfBlob], "Signed_Declaration.pdf", { type: "application/pdf" });
 
-            // 2. Upload
+            // 2. Upload signed PDF
             const postUrl = await generateUploadUrl();
             const result = await fetch(postUrl, {
                 method: "POST",
@@ -135,10 +135,10 @@ const RequestDetail = () => {
                 fileSize: signedFile.size,
             });
 
-            // 4. Submit
+            // 4. Submit declaration
             await submitSelfDeclaration({
                 serviceRequestId: request._id,
-                signatureStorageId: storageId, // Ideally we upload sig image separately, but reuse PDF for now as logic is simplified
+                signatureStorageId: storageId,
                 signedPdfStorageId: storageId,
             });
 
@@ -636,7 +636,7 @@ const RequestDetail = () => {
                     </div>
 
                     {/* Signing Modal */}
-                    <SelfDeclarationSigner
+                    <PdfSignatureEditor
                         open={isSigninOpen}
                         onOpenChange={setIsSigninOpen}
                         pdfUrl={unsignedFileUrl || ""}
