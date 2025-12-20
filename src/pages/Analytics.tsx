@@ -120,11 +120,11 @@ const Analytics = () => {
                 {/* Header */}
                 <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
                     <div className="container flex items-center justify-between h-16">
-                        <Link to="/shop-dashboard" className="flex items-center gap-2">
+                        <Link to="/dashboard/owner" className="flex items-center gap-2">
                             <img src="/logo.png" alt="E-Hub Logo" className="h-10 w-10 object-contain rounded-lg shadow-md bg-white border border-slate-100" />
                             <span className="font-heading text-lg font-bold text-slate-900 tracking-tight">Analytics & Insights</span>
                         </Link>
-                        <Link to="/shop-dashboard">
+                        <Link to="/dashboard/owner">
                             <Button variant="ghost" size="sm" className="font-bold text-slate-700">
                                 <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
                             </Button>
