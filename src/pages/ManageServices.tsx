@@ -22,8 +22,7 @@ import {
     IndianRupee,
     Clock,
     Building2,
-    ChevronDown,
-    Database
+    ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -191,7 +190,7 @@ const ManageServices = () => {
                                         disabled={isSeeding}
                                         className="bg-orange-100 hover:bg-orange-200 text-orange-700 font-black uppercase text-xs tracking-widest px-6 h-14 rounded-2xl shadow-none hover:shadow-lg transition-all"
                                     >
-                                        {isSeeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Database className="h-4 w-4 mr-2" />}
+                                        {isSeeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
                                         Seed Defaults
                                     </Button>
                                 )}
