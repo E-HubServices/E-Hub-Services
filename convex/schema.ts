@@ -75,6 +75,10 @@ const applicationTables = {
     ),
     inputFiles: v.array(v.id("_storage")),
     outputFile: v.optional(v.id("_storage")),
+    // For Option A specific flow: Owner requests signature -> User signs -> Owner processes
+    signatureStatus: v.optional(v.union(v.literal("none"), v.literal("requested"), v.literal("signed"))),
+    unsignedFileId: v.optional(v.id("_storage")), // PDF sent by owner for signing
+    signedFileId: v.optional(v.id("_storage")),   // PDF signed by user
     customerNotes: v.optional(v.string()),
     shopOwnerNotes: v.optional(v.string()),
     estimatedCompletion: v.optional(v.number()),

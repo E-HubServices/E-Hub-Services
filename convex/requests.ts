@@ -14,6 +14,13 @@ export const submitSelfDeclaration = mutation({
   handler: async (ctx, args) => {
     const user = await getRequiredUser(ctx);
 
+    const request = await ctx.db.get(args.serviceRequestId);
+    if (!request) throw new Error("Request not found");
+    // Verify user is the customer
+    if (request.customerId !== user._id) {
+      throw new Error("Unauthorized to sign this document");
+    }
+
     await ctx.db.insert("signed_declarations", {
       userId: user._id,
       serviceRequestId: args.serviceRequestId,
@@ -22,6 +29,22 @@ export const submitSelfDeclaration = mutation({
       signedAt: Date.now(),
       ipAddress: args.ipAddress,
       userAgent: args.userAgent,
+    });
+
+    // Update request status
+    await ctx.db.patch(args.serviceRequestId, {
+      signatureStatus: "signed",
+      signedFileId: args.signedPdfStorageId,
+    });
+
+    // Notify shop owner
+    await ctx.db.insert("messages", {
+      serviceRequestId: args.serviceRequestId,
+      senderId: user._id,
+      text: "Document signed and submitted successfully.",
+      attachments: [args.signedPdfStorageId],
+      messageType: "system",
+      isRead: false,
     });
   },
 });
@@ -441,6 +464,50 @@ export const addInputFiles = mutation({
   },
 });
 
+// Request customer signature
+export const requestCustomerSignature = mutation({
+  args: {
+    requestId: v.id("service_requests"),
+    fileId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const user = await getRequiredUser(ctx);
+    const userId = user._id;
+
+    // Verify user is shop owner
+    if (user.role !== "shop_owner") {
+      throw new Error("Access denied: Shop owner role required");
+    }
+
+    const request = await ctx.db.get(args.requestId);
+    if (!request) {
+      throw new Error("Request not found");
+    }
+
+    if (request.shopOwnerId !== userId) {
+      throw new Error("Access denied: Not assigned to this request");
+    }
+
+    // Update request
+    await ctx.db.patch(args.requestId, {
+      signatureStatus: "requested",
+      unsignedFileId: args.fileId,
+    });
+
+    // Create system message
+    await ctx.db.insert("messages", {
+      serviceRequestId: args.requestId,
+      senderId: userId,
+      text: "Action Required: Please sign the attached document to proceed.",
+      attachments: [args.fileId],
+      messageType: "system",
+      isRead: false,
+    });
+
+    return { success: true };
+  },
+});
+
 // Set output file for completed request
 export const setOutputFile = mutation({
   args: {
@@ -473,3 +540,4 @@ export const setOutputFile = mutation({
     return { success: true };
   },
 });
+

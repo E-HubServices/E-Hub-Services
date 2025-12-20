@@ -31,7 +31,8 @@ import {
     X
 } from "lucide-react";
 import { downloadFromUrl, cn } from "@/lib/utils";
-import ChatBox from "@/components/chat/ChatBox";
+import SelfDeclarationSigner from "@/components/esign/SelfDeclarationSigner";
+import { embedSignatureInPdf } from "@/lib/esign-utils";
 
 const RequestDetail = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -53,18 +54,103 @@ const RequestDetail = () => {
     const setOutputFile = useMutation(api.requests.setOutputFile);
     const generateUploadUrl = useMutation(api.files.generateUploadUrl);
     const saveFileMetadata = useMutation(api.files.saveFileMetadata);
+    const requestCustomerSignature = useMutation(api.requests.requestCustomerSignature);
+    const submitSelfDeclaration = useMutation(api.requests.submitSelfDeclaration);
 
     const [isWorking, setIsWorking] = useState(false);
     const [uploadingResult, setUploadingResult] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [isSigninOpen, setIsSigninOpen] = useState(false);
+    const [isSigning, setIsSigning] = useState(false);
+    const [requestingSignature, setRequestingSignature] = useState(false);
 
     const unreadCount = useQuery(api.messages.getRequestUnreadCount,
         requestId ? { serviceRequestId: requestId as Id<"service_requests"> } : "skip"
     );
 
+    const unsignedFileUrl = useQuery(api.files.getFileUrl,
+        request?.unsignedFileId ? { storageId: request.unsignedFileId, requestId: request._id as any } : "skip"
+    );
+    const signedFileUrl = useQuery(api.files.getFileUrl,
+        request?.signedFileId ? { storageId: request.signedFileId, requestId: request._id as any } : "skip"
+    );
+
     const handleLogout = async () => {
         await signOut({ redirectUrl: "/" });
     };
+
+    const handleRequestSignature = async (file: File) => {
+        if (!request) return;
+        setRequestingSignature(true);
+        try {
+            const postUrl = await generateUploadUrl();
+            const result = await fetch(postUrl, {
+                method: "POST",
+                headers: { "Content-Type": file.type },
+                body: file,
+            });
+            const { storageId } = await result.json();
+            await saveFileMetadata({
+                storageId,
+                originalName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+            });
+            await requestCustomerSignature({
+                requestId: request._id,
+                fileId: storageId,
+            });
+            toast.success("Signature requested from customer");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to request signature");
+        } finally {
+            setRequestingSignature(false);
+        }
+    };
+
+    const handleSignComplete = async (signatureDataUrl: string) => {
+        if (!request || !unsignedFileUrl) return;
+        setIsSigning(true);
+        try {
+            // 1. Embed signature
+            const signedPdfBlob = await embedSignatureInPdf(unsignedFileUrl, signatureDataUrl);
+            const signedFile = new File([signedPdfBlob], "Signed_Declaration.pdf", { type: "application/pdf" });
+
+            // 2. Upload
+            const postUrl = await generateUploadUrl();
+            const result = await fetch(postUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/pdf" },
+                body: signedFile,
+            });
+            const { storageId } = await result.json();
+
+            // 3. Save Metadata
+            await saveFileMetadata({
+                storageId,
+                originalName: "Signed_Declaration.pdf",
+                fileType: "application/pdf",
+                fileSize: signedFile.size,
+            });
+
+            // 4. Submit
+            await submitSelfDeclaration({
+                serviceRequestId: request._id,
+                signatureStorageId: storageId, // Ideally we upload sig image separately, but reuse PDF for now as logic is simplified
+                signedPdfStorageId: storageId,
+            });
+
+            toast.success("Document signed successfully!");
+            setIsSigninOpen(false);
+        } catch (error) {
+            console.error(error);
+            toast.error("Signing failed");
+        } finally {
+            setIsSigning(false);
+        }
+    };
+
 
     if (request === undefined && isAuthenticated) {
         // Loading state handled below or inside Authenticated
@@ -333,6 +419,25 @@ const RequestDetail = () => {
                                                     </div>
                                                 )}
 
+                                                {/* Customer Action: Sign Document */}
+                                                {isCustomer && request.signatureStatus === "requested" && unsignedFileUrl && (
+                                                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-4">
+                                                        <div className="flex items-center gap-2 text-amber-700">
+                                                            <AlertCircle className="h-5 w-5" />
+                                                            <h3 className="font-bold">Action Required</h3>
+                                                        </div>
+                                                        <p className="text-sm text-slate-600">
+                                                            Your partner has requested a signature on a document. Please review and sign to proceed.
+                                                        </p>
+                                                        <Button
+                                                            onClick={() => setIsSigninOpen(true)}
+                                                            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                                        >
+                                                            Sign Document Now
+                                                        </Button>
+                                                    </div>
+                                                )}
+
                                                 {/* Shop Owner Controls */}
                                                 {isOwner && request.status !== "completed" && (
                                                     <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-4">
@@ -340,17 +445,72 @@ const RequestDetail = () => {
                                                             <Shield className="h-5 w-5" />
                                                             <h3 className="font-bold">Partner Controls</h3>
                                                         </div>
-                                                        <div className="grid sm:grid-cols-2 gap-4">
-                                                            {request.status === "assigned" && (
+                                                        <div className="space-y-4">
+                                                            {/* Signature Workflow */}
+                                                            <div className="p-3 bg-white rounded-lg border border-primary/10 space-y-3">
+                                                                <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest">Self-Declaration / Signature</h4>
+
+                                                                {(!request.signatureStatus || request.signatureStatus === 'none') ? (
+                                                                    <div className="space-y-2">
+                                                                        <p className="text-xs text-slate-500 font-medium">Need the customer to sign a document?</p>
+                                                                        <div className="relative">
+                                                                            <input
+                                                                                type="file"
+                                                                                accept=".pdf"
+                                                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                                                                onChange={(e) => {
+                                                                                    if (e.target.files?.[0]) handleRequestSignature(e.target.files[0]);
+                                                                                }}
+                                                                                disabled={requestingSignature}
+                                                                            />
+                                                                            <Button variant="outline" className="w-full border-dashed border-primary/30 text-primary hover:bg-primary/5" disabled={requestingSignature}>
+                                                                                {requestingSignature ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                                                                                Upload & Request Signature
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : request.signatureStatus === 'requested' ? (
+                                                                    <div className="flex items-center gap-2 text-amber-600 text-sm font-bold bg-amber-50 p-2 rounded-lg border border-amber-100">
+                                                                        <Clock className="h-4 w-4" />
+                                                                        Waiting for customer signature...
+                                                                    </div>
+                                                                ) : request.signatureStatus === 'signed' ? (
+                                                                    <div className="space-y-2">
+                                                                        <div className="flex items-center gap-2 text-green-600 text-sm font-bold bg-green-50 p-2 rounded-lg border border-green-100">
+                                                                            <CheckCircle2 className="h-4 w-4" />
+                                                                            Signature Received
+                                                                        </div>
+                                                                        {signedFileUrl && (
+                                                                            <Button
+                                                                                variant="secondary"
+                                                                                size="sm"
+                                                                                className="w-full text-xs"
+                                                                                onClick={() => downloadFromUrl(signedFileUrl!, "Signed_Declaration.pdf")}
+                                                                            >
+                                                                                <Download className="h-3 w-3 mr-2" /> Download Signed PDF
+                                                                            </Button>
+                                                                        )}
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+
+                                                            <Separator className="bg-primary/10" />
+
+                                                            {/* Status Management */}
+                                                            <div className="grid sm:grid-cols-2 gap-3">
                                                                 <Button
                                                                     onClick={handleStartProcessing}
-                                                                    disabled={isWorking}
-                                                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                                                                    disabled={isWorking || request.status === "in_progress"}
+                                                                    className={cn(
+                                                                        "w-full",
+                                                                        request.status === "in_progress"
+                                                                            ? "bg-slate-100 text-slate-400 border border-slate-200 pointer-events-none"
+                                                                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                                                                    )}
                                                                 >
-                                                                    {isWorking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Start Processing"}
+                                                                    {isWorking ? <Loader2 className="h-4 w-4 animate-spin" /> : request.status === "in_progress" ? "Processing..." : "Start Processing"}
                                                                 </Button>
-                                                            )}
-                                                            {request.status === "in_progress" && (
+
                                                                 <div className="relative w-full">
                                                                     <input
                                                                         type="file"
@@ -368,7 +528,7 @@ const RequestDetail = () => {
                                                                         Upload Final Result
                                                                     </Button>
                                                                 </div>
-                                                            )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
@@ -473,6 +633,15 @@ const RequestDetail = () => {
                             ) : null}
                         </Button>
                     </div>
+
+                    {/* Signing Modal */}
+                    <SelfDeclarationSigner
+                        open={isSigninOpen}
+                        onOpenChange={setIsSigninOpen}
+                        pdfUrl={unsignedFileUrl || ""}
+                        onSignComplete={handleSignComplete}
+                        isSubmitting={isSigning}
+                    />
                 </div>
             </Authenticated>
         </>
