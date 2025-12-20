@@ -469,11 +469,24 @@ const RequestDetail = () => {
                                                                                 Upload & Request Signature
                                                                             </Button>
                                                                         </div>
+                                                                        <p className="text-[10px] text-slate-400 italic">Upload a PDF document for the customer to sign</p>
                                                                     </div>
                                                                 ) : request.signatureStatus === 'requested' ? (
-                                                                    <div className="flex items-center gap-2 text-amber-600 text-sm font-bold bg-amber-50 p-2 rounded-lg border border-amber-100">
-                                                                        <Clock className="h-4 w-4" />
-                                                                        Waiting for customer signature...
+                                                                    <div className="space-y-2">
+                                                                        <div className="flex items-center gap-2 text-amber-600 text-sm font-bold bg-amber-50 p-2 rounded-lg border border-amber-100">
+                                                                            <Clock className="h-4 w-4 animate-pulse" />
+                                                                            Waiting for customer signature...
+                                                                        </div>
+                                                                        {unsignedFileUrl && (
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="w-full text-xs"
+                                                                                onClick={() => window.open(unsignedFileUrl, '_blank')}
+                                                                            >
+                                                                                <Eye className="h-3 w-3 mr-2" /> View Sent Document
+                                                                            </Button>
+                                                                        )}
                                                                     </div>
                                                                 ) : request.signatureStatus === 'signed' ? (
                                                                     <div className="space-y-2">
@@ -491,6 +504,7 @@ const RequestDetail = () => {
                                                                                 <Download className="h-3 w-3 mr-2" /> Download Signed PDF
                                                                             </Button>
                                                                         )}
+                                                                        <p className="text-[10px] text-green-600 italic">✓ You can now process and upload the final result below</p>
                                                                     </div>
                                                                 ) : null}
                                                             </div>
