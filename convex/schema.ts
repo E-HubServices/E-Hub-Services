@@ -175,6 +175,19 @@ const applicationTables = {
     ipAddress: v.optional(v.string()),
   })
     .index("by_request", ["requestId"]),
+  // Signed Self-Declarations
+  signed_declarations: defineTable({
+    userId: v.id("users"),
+    serviceRequestId: v.id("service_requests"),
+    signatureUrl: v.string(), // Image of signature
+    signedPdfUrl: v.string(), // Final PDF
+    signedAt: v.number(),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    documentHash: v.optional(v.string()),
+  })
+    .index("by_request", ["serviceRequestId"])
+    .index("by_user", ["userId"]),
 };
 
 export default defineSchema(applicationTables);

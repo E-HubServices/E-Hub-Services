@@ -2,6 +2,30 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, getRequiredUser } from "./utils/auth";
 
+// Record a signed self-declaration
+export const submitSelfDeclaration = mutation({
+  args: {
+    serviceRequestId: v.id("service_requests"),
+    signatureStorageId: v.id("_storage"),
+    signedPdfStorageId: v.id("_storage"),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getRequiredUser(ctx);
+
+    await ctx.db.insert("signed_declarations", {
+      userId: user._id,
+      serviceRequestId: args.serviceRequestId,
+      signatureUrl: (await ctx.storage.getUrl(args.signatureStorageId))!,
+      signedPdfUrl: (await ctx.storage.getUrl(args.signedPdfStorageId))!,
+      signedAt: Date.now(),
+      ipAddress: args.ipAddress,
+      userAgent: args.userAgent,
+    });
+  },
+});
+
 // Create service request after successful payment
 // Create service request after successful payment
 export const createServiceRequest = mutation({
