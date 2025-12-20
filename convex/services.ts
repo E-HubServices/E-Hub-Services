@@ -48,6 +48,27 @@ export const getAllServices = query({
   },
 });
 
+// Get all services for management (including inactive)
+export const getManageableServices = query({
+  args: {},
+  handler: async (ctx) => {
+    const services = await ctx.db.query("services").collect();
+
+    // Enrich with category information
+    const enrichedServices = await Promise.all(
+      services.map(async (service) => {
+        const category = await ctx.db.get(service.categoryId);
+        return {
+          ...service,
+          category: category?.name || "Unknown",
+        };
+      })
+    );
+
+    return enrichedServices;
+  },
+});
+
 // Get service details by ID
 export const getServiceById = query({
   args: { serviceId: v.id("services") },

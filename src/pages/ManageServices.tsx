@@ -22,7 +22,8 @@ import {
     IndianRupee,
     Clock,
     Building2,
-    ChevronDown
+    ChevronDown,
+    Database
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,11 +51,12 @@ import { cn } from "@/lib/utils";
 const ManageServices = () => {
     const user = useQuery(api.users.getProfile);
     const categories = useQuery(api.services.getCategories);
-    const services = useQuery(api.services.getAllServices);
+    const services = useQuery(api.services.getManageableServices);
 
     const createService = useMutation(api.services.createService);
     const updateService = useMutation(api.services.updateService);
     const deleteService = useMutation(api.services.deleteService);
+    const seedServices = useMutation(api.services.seedServices);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,12 +72,25 @@ const ManageServices = () => {
         requiredDocuments: [] as string[],
         isActive: true,
     });
+    const [isSeeding, setIsSeeding] = useState(false);
 
     const [newDoc, setNewDoc] = useState("");
 
     if (user && user.role !== "shop_owner") {
         return <Navigate to="/dashboard" replace />;
     }
+
+    const handleSeed = async () => {
+        setIsSeeding(true);
+        try {
+            await seedServices();
+            toast.success("Default services seeded successfully!");
+        } catch (error) {
+            toast.error("Failed to seed services");
+        } finally {
+            setIsSeeding(false);
+        }
+    };
 
     const handleOpenModal = (service: any = null) => {
         if (service) {
@@ -89,14 +104,15 @@ const ManageServices = () => {
                 price: service.price,
                 processingTime: service.processingTime,
                 requiredDocuments: service.requiredDocuments,
-                isActive: service.isActive,
+                isActive: service.isActive ?? true,
             });
         } else {
             setEditingService(null);
             setFormData({
                 name: "",
                 description: "",
-                categoryId: categories?.[0]?._id as Id<"service_categories"> || "" as any,
+                // Default to first category if available, else empty string
+                categoryId: categories && categories.length > 0 ? categories[0]._id : "" as Id<"service_categories">,
                 department: "",
                 serviceCode: "",
                 price: 0,
@@ -109,6 +125,11 @@ const ManageServices = () => {
     };
 
     const handleSave = async () => {
+        if (!formData.name || !formData.categoryId || !formData.serviceCode) {
+            toast.error("Please fill in all required fields (Name, Category, Code)");
+            return;
+        }
+
         try {
             if (editingService) {
                 await updateService({
@@ -122,6 +143,7 @@ const ManageServices = () => {
             }
             setIsModalOpen(false);
         } catch (error) {
+            console.error(error);
             toast.error("Failed to save service");
         }
     };
@@ -162,9 +184,21 @@ const ManageServices = () => {
                                     Manage and optimize your government service offerings
                                 </p>
                             </div>
-                            <Button onClick={() => handleOpenModal()} className="bg-primary hover:bg-primary text-white font-black uppercase text-xs tracking-widest px-8 h-14 rounded-2xl shadow-xl shadow-primary/20 hover:-translate-y-1 active:scale-95 transition-all">
-                                <Plus className="h-5 w-5 mr-3" /> Add New Service
-                            </Button>
+                            <div className="flex gap-3">
+                                {categories && categories.length === 0 && (
+                                    <Button
+                                        onClick={handleSeed}
+                                        disabled={isSeeding}
+                                        className="bg-orange-100 hover:bg-orange-200 text-orange-700 font-black uppercase text-xs tracking-widest px-6 h-14 rounded-2xl shadow-none hover:shadow-lg transition-all"
+                                    >
+                                        {isSeeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Database className="h-4 w-4 mr-2" />}
+                                        Seed Defaults
+                                    </Button>
+                                )}
+                                <Button onClick={() => handleOpenModal()} className="bg-primary hover:bg-primary text-white font-black uppercase text-xs tracking-widest px-8 h-14 rounded-2xl shadow-xl shadow-primary/20 hover:-translate-y-1 active:scale-95 transition-all">
+                                    <Plus className="h-5 w-5 mr-3" /> Add New Service
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Filters */}
@@ -191,7 +225,9 @@ const ManageServices = () => {
                                     <Card key={service._id} className="group overflow-hidden border-slate-200 hover:shadow-2xl transition-all hover:-translate-y-1">
                                         <CardHeader className="pb-3">
                                             <div className="flex justify-between items-start">
-                                                <Badge variant="outline" className="font-mono text-[10px] text-slate-500">{service.serviceCode}</Badge>
+                                                <Badge variant="outline" className={`font-mono text-[10px] ${service.isActive ? "text-slate-500" : "text-red-500 border-red-200 bg-red-50"}`}>
+                                                    {service.serviceCode} {service.isActive === false && "(INACTIVE)"}
+                                                </Badge>
                                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => handleOpenModal(service)}>
                                                         <Edit className="h-4 w-4" />
@@ -335,6 +371,18 @@ const ManageServices = () => {
                                                 <X className="h-3 w-3 cursor-pointer hover:text-red-600" onClick={() => setFormData({ ...formData, requiredDocuments: formData.requiredDocuments.filter((_, idx) => idx !== i) })} />
                                             </Badge>
                                         ))}
+                                    </div>
+                                </div>
+                                <div className="col-span-2 space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Active Status</label>
+                                    <div className="flex items-center gap-2 h-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.isActive}
+                                            onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
+                                            className="w-5 h-5 accent-primary"
+                                        />
+                                        <span className="text-sm font-bold text-slate-700">{formData.isActive ? "Active (Visible to users)" : "Inactive (Hidden)"}</span>
                                     </div>
                                 </div>
                             </div>
