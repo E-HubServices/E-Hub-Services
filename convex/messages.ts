@@ -53,11 +53,19 @@ export const getMessages = query({
       messages = await ctx.db
         .query("messages")
         .withIndex("by_service_request", (q) => q.eq("serviceRequestId", args.serviceRequestId))
+        .filter((q) => q.or(
+          q.eq(q.field("messageType"), "text"),
+          q.eq(q.field("messageType"), "file")
+        ))
         .collect();
     } else if (args.esignRequestId) {
       messages = await ctx.db
         .query("messages")
         .withIndex("by_esign_request", (q) => q.eq("esignRequestId", args.esignRequestId))
+        .filter((q) => q.or(
+          q.eq(q.field("messageType"), "text"),
+          q.eq(q.field("messageType"), "file")
+        ))
         .collect();
     } else {
       return [];

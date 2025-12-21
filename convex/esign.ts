@@ -40,6 +40,20 @@ export const createEsignRequest = mutation({
             performedAt: Date.now(),
         });
 
+        // Notify authorities
+        const owners = await ctx.db.query("users").filter(q => q.eq(q.field("role"), "shop_owner")).collect();
+        for (const owner of owners) {
+            await ctx.db.insert("notifications", {
+                userId: owner._id,
+                title: "New E-Sign Request",
+                description: `${args.details.name} has requested an authorized e-sign.`,
+                type: "esign_request",
+                esignRequestId: requestId,
+                isRead: false,
+                createdAt: Date.now(),
+            });
+        }
+
         return requestId;
     },
 });
@@ -118,12 +132,27 @@ export const updateEsignStatus = mutation({
             rejectionReason: args.rejectionReason,
         });
 
-        // Audit Log
-        await ctx.db.insert("esign_audit_logs", {
-            requestId: args.requestId,
-            action: args.status.toUpperCase(),
-            performedBy: user._id,
-            performedAt: Date.now(),
+        // Notify requester
+        const esignStatusTitles = {
+            accepted: "E-Sign Request Accepted",
+            rejected: "E-Sign Request Rejected",
+            cancelled: "E-Sign Request Cancelled",
+        };
+
+        const esignStatusMessages = {
+            accepted: "Your e-sign request has been accepted and is being processed.",
+            rejected: `Your e-sign request was rejected.${args.rejectionReason ? ` Reason: ${args.rejectionReason}` : ""}`,
+            cancelled: "The e-sign request has been cancelled.",
+        };
+
+        await ctx.db.insert("notifications", {
+            userId: request.requesterId,
+            title: esignStatusTitles[args.status] || "Status Update",
+            description: esignStatusMessages[args.status] || `Status changed to ${args.status}`,
+            type: "status_update",
+            esignRequestId: args.requestId,
+            isRead: false,
+            createdAt: Date.now(),
         });
 
         return true;
@@ -204,6 +233,17 @@ export const internalCompleteSign = mutation({
             action: "SIGNED",
             performedBy: owner?._id || request.requesterId, // Fallback if owner not found in search
             performedAt: Date.now(),
+        });
+
+        // Notify requester
+        await ctx.db.insert("notifications", {
+            userId: request.requesterId,
+            title: "Document Signed Successfully",
+            description: "Your document has been authorized and signed. You can download it now.",
+            type: "esign_signed",
+            esignRequestId: args.requestId,
+            isRead: false,
+            createdAt: Date.now(),
         });
 
         return true;

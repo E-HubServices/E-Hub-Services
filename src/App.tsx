@@ -17,6 +17,7 @@ import EsignEditor from "./pages/EsignEditor";
 import EsignView from "./pages/EsignView";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import NotificationTracker from "./components/shared/NotificationTracker";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <NotificationTracker />
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />

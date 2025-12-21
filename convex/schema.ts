@@ -192,6 +192,20 @@ const applicationTables = {
   })
     .index("by_request", ["serviceRequestId"])
     .index("by_user", ["userId"]),
+
+  // Notifications for users
+  notifications: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    description: v.string(),
+    type: v.string(), // status_update, signature_request, assignment, etc.
+    isRead: v.boolean(),
+    serviceRequestId: v.optional(v.id("service_requests")),
+    esignRequestId: v.optional(v.id("esign_requests")),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_read", ["isRead"]),
 };
 
 export default defineSchema(applicationTables);

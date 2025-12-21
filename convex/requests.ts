@@ -37,15 +37,18 @@ export const submitSelfDeclaration = mutation({
       signedFileId: args.signedPdfStorageId,
     });
 
-    // Notify shop owner
-    await ctx.db.insert("messages", {
-      serviceRequestId: args.serviceRequestId,
-      senderId: user._id,
-      text: "Document signed and submitted successfully.",
-      attachments: [args.signedPdfStorageId],
-      messageType: "system",
-      isRead: false,
-    });
+    // Notify shop owner via notification
+    if (request.shopOwnerId) {
+      await ctx.db.insert("notifications", {
+        userId: request.shopOwnerId,
+        title: "Document Signed",
+        description: `Customer has signed the document for request ${args.serviceRequestId}.`,
+        type: "signature_completed",
+        serviceRequestId: args.serviceRequestId,
+        isRead: false,
+        createdAt: Date.now(),
+      });
+    }
   },
 });
 
@@ -90,13 +93,15 @@ export const createServiceRequest = mutation({
       customerNotes: args.customerNotes,
     });
 
-    // Create system message
-    await ctx.db.insert("messages", {
+    // Create notification for customer
+    await ctx.db.insert("notifications", {
+      userId: userId,
+      title: "Request Created",
+      description: "Service request created successfully." + (inputFiles.length > 0 ? ` Included ${inputFiles.length} document(s).` : ""),
+      type: "request_created",
       serviceRequestId: requestId,
-      senderId: userId,
-      text: "Service request created successfully." + (inputFiles.length > 0 ? ` Included ${inputFiles.length} document(s).` : " Please upload required documents."),
-      messageType: "system",
       isRead: false,
+      createdAt: Date.now(),
     });
 
     // If there are input files, create a message for them specifically so they appear in chat
@@ -360,13 +365,15 @@ export const assignRequest = mutation({
       status: "assigned",
     });
 
-    // Create system message
-    await ctx.db.insert("messages", {
+    // Create notification for customer
+    await ctx.db.insert("notifications", {
+      userId: request.customerId,
+      title: "Service Assigned",
+      description: `Your request has been assigned to ${user.name}.`,
+      type: "assignment",
       serviceRequestId: args.requestId,
-      senderId: userId,
-      text: `Request assigned to ${user.name}. Work will begin shortly.`,
-      messageType: "system",
       isRead: false,
+      createdAt: Date.now(),
     });
 
     return { success: true };
@@ -415,19 +422,26 @@ export const updateRequestStatus = mutation({
 
     await ctx.db.patch(args.requestId, updateData);
 
-    // Create status update message
     const statusMessages = {
       in_progress: "Work has started on your request.",
       completed: "Your request has been completed. You can download the final document.",
       cancelled: "Your request has been cancelled.",
     };
 
-    await ctx.db.insert("messages", {
+    const statusTitles = {
+      in_progress: "Processing Started",
+      completed: "Request Completed",
+      cancelled: "Request Cancelled",
+    };
+
+    await ctx.db.insert("notifications", {
+      userId: request.customerId,
+      title: statusTitles[args.status],
+      description: statusMessages[args.status] + (args.notes ? ` Note: ${args.notes}` : ""),
+      type: "status_update",
       serviceRequestId: args.requestId,
-      senderId: userId,
-      text: statusMessages[args.status] + (args.notes ? ` Note: ${args.notes}` : ""),
-      messageType: "status_update",
       isRead: false,
+      createdAt: Date.now(),
     });
 
     return { success: true };
@@ -548,14 +562,15 @@ export const requestCustomerSignature = mutation({
       unsignedFileId: args.fileId,
     });
 
-    // Create system message
-    await ctx.db.insert("messages", {
+    // Create notification for customer
+    await ctx.db.insert("notifications", {
+      userId: request.customerId,
+      title: "Signature Requested",
+      description: "Action Required: Please sign the attached document to proceed.",
+      type: "signature_request",
       serviceRequestId: args.requestId,
-      senderId: userId,
-      text: "Action Required: Please sign the attached document to proceed.",
-      attachments: [args.fileId],
-      messageType: "system",
       isRead: false,
+      createdAt: Date.now(),
     });
 
     return { success: true };
