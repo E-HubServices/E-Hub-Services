@@ -15,6 +15,7 @@ import type * as esign_actions from "../esign_actions.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
+import type * as notifications from "../notifications.js";
 import type * as payments from "../payments.js";
 import type * as requests from "../requests.js";
 import type * as seed from "../seed.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   http: typeof http;
   messages: typeof messages;
+  notifications: typeof notifications;
   payments: typeof payments;
   requests: typeof requests;
   seed: typeof seed;
