@@ -27,7 +27,8 @@ import {
   User,
   LogOut,
   Lock,
-  Info
+  Info,
+  AlertTriangle
 } from "lucide-react";
 import RazorpayCheckout from "@/components/checkout/RazorpayCheckout";
 import {
@@ -235,13 +236,14 @@ const ServiceDetail = () => {
                       </CardHeader>
                       <CardContent className="p-0">
                         <div className="p-4 bg-orange-100/50 border-b border-orange-200 flex items-start gap-4">
-                          <Info className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+                          <AlertTriangle className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
                           <div>
-                            <p className="text-sm font-bold text-orange-900">Upload Instructions:</p>
+                            <p className="text-sm font-black text-orange-900">CRITICAL UPLOAD INSTRUCTIONS:</p>
                             <ul className="text-xs text-orange-950 mt-1 list-disc list-inside space-y-1 font-bold">
                               <li>Format: PDF, JPEG, or PNG only</li>
-                              <li>File size must be less than 1MB per image</li>
-                              <li>All documents must be clear and legible</li>
+                              <li>File size must be strictly less than 1MB</li>
+                              <li>Use clear, bright lighting for photos - blurred documents will be rejected</li>
+                              <li>Ensure all text is readable and corners are not cut off</li>
                             </ul>
                           </div>
                         </div>
@@ -317,15 +319,27 @@ const ServiceDetail = () => {
                           </div>
                         </div>
 
-                        {!allDocsUploaded && (
-                          <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex items-start gap-3">
-                            <AlertCircle className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-xs font-bold text-orange-900 uppercase">Action Required</p>
-                              <p className="text-xs text-orange-800 mt-0.5">Please upload the remaining <strong>{missingDocsCount} document(s)</strong> to proceed with payment.</p>
+                        <div className="space-y-3">
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">Liability Disclaimer</h4>
+                            <div className="flex gap-2">
+                              <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                              <p className="text-[10px] leading-tight text-slate-600 font-bold">
+                                E-Hub is a service facilitator. We are NOT responsible if your application is rejected by the government department. Fees paid are for processing and are non-refundable in case of govt rejection.
+                              </p>
                             </div>
                           </div>
-                        )}
+
+                          {!allDocsUploaded && (
+                            <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex items-start gap-3">
+                              <AlertCircle className="h-5 w-5 text-orange-600 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-bold text-orange-900 uppercase">Action Required</p>
+                                <p className="text-xs text-orange-800 mt-0.5">Please upload the remaining <strong>{missingDocsCount} document(s)</strong> to proceed with payment.</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
 
                         <Button
                           className={cn(
@@ -369,7 +383,7 @@ const ServiceDetail = () => {
                 </div>
                 <DialogTitle className="text-2xl font-black">Secure Payment</DialogTitle>
                 <DialogDescription className="text-slate-400 font-medium pt-1">
-                  Complete your payment for <strong>{service?.name}</strong>. Your documents are securely staged.
+                  Complete your payment for <strong>{service?.name}</strong>. Your documents are securely staged. By paying, you acknowledge that government processing fees are non-refundable even if the application is rejected.
                 </DialogDescription>
               </DialogHeader>
               <div className="p-6 bg-white">

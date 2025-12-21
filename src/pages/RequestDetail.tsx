@@ -28,7 +28,8 @@ import {
     LogOut,
     Eye,
     Image as ImageIcon,
-    X
+    X,
+    AlertTriangle
 } from "lucide-react";
 import { downloadFromUrl, cn } from "@/lib/utils";
 import ChatBox from "@/components/chat/ChatBox";
@@ -596,20 +597,46 @@ const RequestDetail = () => {
                                         </Card>
 
                                         {/* Help & Safety */}
-                                        <Card className="bg-slate-900 text-white border-none shadow-2xl overflow-hidden relative group">
-                                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform pointer-events-none">
-                                                <Shield className="h-20 w-20" />
-                                            </div>
-                                            <CardContent className="pt-8 pb-8 relative z-10">
-                                                <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center mb-6 border border-primary/30">
-                                                    <Shield className="h-6 w-6 text-primary animate-pulse" />
+                                        <div className="space-y-4">
+                                            <Card className="bg-red-50 border-red-200">
+                                                <CardContent className="pt-6">
+                                                    <div className="flex gap-3">
+                                                        <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+                                                        <div>
+                                                            <h4 className="text-xs font-black uppercase text-red-900 tracking-widest mb-1">Service Disclaimer</h4>
+                                                            <p className="text-[10px] leading-relaxed text-red-800 font-bold italic">
+                                                                Applications are processed and submitted to the government. E-Hub is NOT responsible for rejection by govt authorities. In case of rejection, the service fee is non-refundable as it covers the processing work.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card className="bg-slate-900 text-white border-none shadow-2xl overflow-hidden relative group">
+                                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform pointer-events-none">
+                                                    <Shield className="h-20 w-20" />
                                                 </div>
-                                                <h3 className="text-xl font-black mb-3">Secure Processing</h3>
-                                                <p className="text-sm text-slate-400 font-bold leading-relaxed">
-                                                    E-Hub Services ensures your sensitive documents are handled with military-grade encryption and only accessible by verified partners.
-                                                </p>
-                                            </CardContent>
-                                        </Card>
+                                                <CardContent className="pt-8 pb-8 relative z-10">
+                                                    <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center mb-6 border border-primary/30">
+                                                        <Shield className="h-6 w-6 text-primary animate-pulse" />
+                                                    </div>
+                                                    <h3 className="text-xl font-black mb-3">Secure Processing</h3>
+                                                    <p className="text-sm text-slate-400 font-bold leading-relaxed">
+                                                        E-Hub Services ensures your sensitive documents are handled with military-grade encryption and only accessible by verified partners.
+                                                    </p>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card className="bg-white border-slate-200 group">
+                                                <CardContent className="pt-6">
+                                                    <h3 className="font-heading text-lg font-bold mb-2">Need Help?</h3>
+                                                    <p className="text-slate-500 text-sm mb-4 font-medium">Our support team is available from 9 AM to 6 PM for any clarifications.</p>
+                                                    <Button variant="outline" className="w-full border-slate-200 hover:bg-slate-50 font-bold">
+                                                        Contact Support
+                                                    </Button>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

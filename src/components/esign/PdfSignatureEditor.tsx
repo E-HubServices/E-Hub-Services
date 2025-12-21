@@ -16,7 +16,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Maximize2,
-    Move
+    Move,
+    Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -284,6 +285,15 @@ const PdfSignatureEditor = ({
                                     <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                             </div>
+                        </div>
+
+                        {/* Signature Placement Alert */}
+                        <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center gap-3 shrink-0">
+                            <Info className="h-4 w-4 text-primary shrink-0" />
+                            <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-tight">
+                                <span className="text-primary uppercase tracking-tighter mr-1">Pro Tip:</span>
+                                Drag the signature to place it correctly. Use the <span className="text-primary italic">blue handle</span> to resize for maximum clarity. Ensure it doesn't overlap important text.
+                            </p>
                         </div>
 
                         {/* SCROLLABLE PDF Container */}
