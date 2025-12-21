@@ -277,6 +277,60 @@ export const getPendingRequests = query({
   },
 });
 
+// Get requests awaiting customer signatures (for shop owner dashboard)
+export const getSignaturePendingRequests = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return [];
+    }
+
+    // Verify user is shop owner
+    if (user.role !== "shop_owner") {
+      return [];
+    }
+
+    const requests = await ctx.db
+      .query("service_requests")
+      .withIndex("by_shop_owner", (q) => q.eq("shopOwnerId", user._id))
+      .filter((q) => q.eq(q.field("signatureStatus"), "requested"))
+      .order("desc")
+      .collect();
+
+    // Enrich with service, customer, and payment information
+    const enrichedRequests = await Promise.all(
+      requests.map(async (request) => {
+        const [service, customer, payment] = await Promise.all([
+          ctx.db.get(request.serviceId),
+          ctx.db.get(request.customerId),
+          ctx.db.get(request.paymentId),
+        ]);
+
+        return {
+          ...request,
+          service: service ? {
+            name: service.name,
+            serviceCode: service.serviceCode,
+            department: service.department,
+          } : null,
+          customer: customer ? {
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+          } : null,
+          payment: payment ? {
+            amount: payment.amount,
+            status: payment.status,
+          } : null,
+        };
+      })
+    );
+
+    return enrichedRequests;
+  },
+});
+
 // Assign request to shop owner
 export const assignRequest = mutation({
   args: {

@@ -67,6 +67,7 @@ const ShopOwnerDashboard = () => {
     const stats = useQuery(api.users.getUserStats, user ? {} : "skip");
     const shopOwnerRequests = useQuery(api.requests.getShopOwnerRequests, user?.role === "shop_owner" ? {} : "skip");
     const pendingRequests = useQuery(api.requests.getPendingRequests, user?.role === "shop_owner" ? {} : "skip");
+    const signaturePendingRequests = useQuery(api.requests.getSignaturePendingRequests, user?.role === "shop_owner" ? {} : "skip");
 
     const [activeTab, setActiveTab] = useState("assigned");
     const assignRequest = useMutation(api.requests.assignRequest);
@@ -214,6 +215,65 @@ const ShopOwnerDashboard = () => {
                                         </div>
                                     </Link>
                                 </div>
+
+                                {/* Signature Pending Alert Section */}
+                                {signaturePendingRequests && signaturePendingRequests.length > 0 && (
+                                    <Card className="border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-xl">
+                                        <CardHeader className="pb-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center animate-pulse">
+                                                    <AlertCircle className="h-6 w-6 text-white" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <CardTitle className="font-heading text-xl text-amber-900 flex items-center gap-2">
+                                                        ⚡ Awaiting Customer Signatures
+                                                        <Badge className="bg-amber-600 text-white font-black">
+                                                            {signaturePendingRequests.length}
+                                                        </Badge>
+                                                    </CardTitle>
+                                                    <p className="text-sm text-amber-700 font-bold mt-1">
+                                                        These requests need customer signatures before you can process them
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            {signaturePendingRequests.slice(0, 3).map((r: any) => (
+                                                <Link
+                                                    key={r._id}
+                                                    to={`/request/${r._id}`}
+                                                    className="flex items-center justify-between p-4 rounded-xl border-2 border-amber-200 bg-white hover:border-amber-400 hover:shadow-lg transition-all group"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                                                            <FileText className="h-5 w-5 text-amber-600" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900 group-hover:text-amber-900 transition-colors">
+                                                                {r.service?.name}
+                                                            </h4>
+                                                            <p className="text-xs text-slate-500 font-medium">
+                                                                Customer: {r.customer?.name} • {r.service?.serviceCode}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-bold">
+                                                            <Clock className="h-3 w-3 mr-1 animate-pulse" />
+                                                            Waiting
+                                                        </Badge>
+                                                        <ChevronRight className="h-5 w-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                            {signaturePendingRequests.length > 3 && (
+                                                <p className="text-xs text-amber-700 font-bold text-center pt-2">
+                                                    + {signaturePendingRequests.length - 3} more awaiting signatures
+                                                </p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                )}
 
                                 <div className="flex flex-col lg:flex-row gap-8">
                                     <div className="flex-1">
