@@ -200,6 +200,7 @@ const applicationTables = {
     description: v.string(),
     type: v.string(), // status_update, signature_request, assignment, etc.
     isRead: v.boolean(),
+    isToastShown: v.boolean(),
     serviceRequestId: v.optional(v.id("service_requests")),
     esignRequestId: v.optional(v.id("esign_requests")),
     createdAt: v.number(),

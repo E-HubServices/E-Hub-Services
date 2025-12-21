@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { Bell, CheckCircle2, AlertCircle, Info } from "lucide-react";
 
 const NotificationTracker = () => {
-    const notifications = useQuery(api.notifications.getUnreadNotifications);
-    const markAsRead = useMutation(api.notifications.markAsRead);
+    const notifications = useQuery(api.notifications.getNewNotificationsForToast);
+    const markAsToastShown = useMutation(api.notifications.markAsToastShown);
 
     useEffect(() => {
         if (notifications && notifications.length > 0) {
@@ -23,14 +23,14 @@ const NotificationTracker = () => {
                 toast(notification.title, {
                     description: notification.description,
                     icon: getIcon(notification.type),
-                    duration: 5000,
+                    duration: 4000, // Short duration for pop-up
                 });
 
-                // Mark as read after showing the toast
-                markAsRead({ notificationId: notification._id });
+                // Mark as toast shown immediately so it doesn't repeat
+                markAsToastShown({ notificationId: notification._id });
             });
         }
-    }, [notifications, markAsRead]);
+    }, [notifications, markAsToastShown]);
 
     return null;
 };

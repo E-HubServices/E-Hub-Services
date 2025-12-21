@@ -16,7 +16,23 @@ export const getMyNotifications = query({
     },
 });
 
-export const getUnreadNotifications = query({
+export const getUnreadNotificationsCount = query({
+    args: {},
+    handler: async (ctx) => {
+        const user = await getCurrentUser(ctx);
+        if (!user) return 0;
+
+        const unread = await ctx.db
+            .query("notifications")
+            .withIndex("by_user", (q) => q.eq("userId", user._id))
+            .filter((q) => q.eq(q.field("isRead"), false))
+            .collect();
+
+        return unread.length;
+    },
+});
+
+export const getNewNotificationsForToast = query({
     args: {},
     handler: async (ctx) => {
         const user = await getCurrentUser(ctx);
@@ -25,16 +41,22 @@ export const getUnreadNotifications = query({
         return await ctx.db
             .query("notifications")
             .withIndex("by_user", (q) => q.eq("userId", user._id))
-            .filter((q) => q.eq(q.field("isRead"), false))
-            .order("desc")
+            .filter((q) => q.eq(q.field("isToastShown"), false))
             .collect();
+    },
+});
+
+export const markAsToastShown = mutation({
+    args: { notificationId: v.id("notifications") },
+    handler: async (ctx, args) => {
+        await ctx.db.patch(args.notificationId, { isToastShown: true });
     },
 });
 
 export const markAsRead = mutation({
     args: { notificationId: v.id("notifications") },
     handler: async (ctx, args) => {
-        await ctx.db.patch(args.notificationId, { isRead: true });
+        await ctx.db.patch(args.notificationId, { isRead: true, isToastShown: true });
     },
 });
 
@@ -51,7 +73,7 @@ export const markAllAsRead = mutation({
             .collect();
 
         for (const notification of unread) {
-            await ctx.db.patch(notification._id, { isRead: true });
+            await ctx.db.patch(notification._id, { isRead: true, isToastShown: true });
         }
     },
 });
@@ -70,6 +92,7 @@ export const createNotification = mutation({
         return await ctx.db.insert("notifications", {
             ...args,
             isRead: false,
+            isToastShown: false,
             createdAt: Date.now(),
         });
     }
