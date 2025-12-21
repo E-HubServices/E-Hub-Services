@@ -23,3 +23,16 @@ export async function downloadFromUrl(url: string, filename: string) {
     window.open(url, '_blank');
   }
 }
+
+export function formatSafeFileName(userName: string, docType: string, originalFileName: string) {
+  const parts = originalFileName.split('.');
+  const extension = parts.length > 1 ? parts.pop() : '';
+  const sanitizedUserName = userName.trim().replace(/\s+/g, '_').toLowerCase();
+  const sanitizedDocType = docType.trim().replace(/\s+/g, '_').toLowerCase();
+  return `${sanitizedUserName}-${sanitizedDocType}${extension ? '.' + extension : ''}`;
+}
+
+export function getFileExtension(filename: string) {
+  const parts = filename.split('.');
+  return parts.length > 1 ? `.${parts.pop()}` : '';
+}

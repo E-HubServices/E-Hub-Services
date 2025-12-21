@@ -38,7 +38,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, formatSafeFileName } from "@/lib/utils";
 
 const ServiceDetail = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -80,9 +80,10 @@ const ServiceDetail = () => {
 
       const { storageId } = await result.json();
 
+      const safeName = formatSafeFileName(user?.name || "user", docName, file.name);
       await saveFileMetadata({
         storageId,
-        originalName: file.name,
+        originalName: safeName,
         fileType: file.type,
         fileSize: file.size,
       });

@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, Upload, Shield, AlertCircle } from "lucide-react";
 import { Id } from "../../../convex/_generated/dataModel";
+import { formatSafeFileName } from "@/lib/utils";
 
 interface EsignRequestModalProps {
     isOpen: boolean;
@@ -26,6 +27,7 @@ interface EsignRequestModalProps {
 export const EsignRequestModal = ({ isOpen, onOpenChange }: EsignRequestModalProps) => {
     const user = useQuery(api.users.getProfile);
     const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const saveFileMetadata = useMutation(api.files.saveFileMetadata);
     const createEsignRequest = useMutation(api.esign.createEsignRequest);
 
     const [isLoading, setIsLoading] = useState(false);
@@ -83,6 +85,15 @@ export const EsignRequestModal = ({ isOpen, onOpenChange }: EsignRequestModalPro
 
             if (!result.ok) throw new Error("Upload failed");
             const { storageId } = await result.json();
+
+            // Save Metadata
+            const safeName = formatSafeFileName(formData.name || user?.name || "user", "Esign_Document", file.name);
+            await saveFileMetadata({
+                storageId,
+                originalName: safeName,
+                fileType: file.type,
+                fileSize: file.size,
+            });
 
             // 3. Create request
             await createEsignRequest({

@@ -159,11 +159,14 @@ export const internalCompleteSign = mutation({
     args: {
         requestId: v.id("esign_requests"),
         signedFileId: v.id("_storage"),
+        fileSize: v.optional(v.number()),
     },
     handler: async (ctx, args) => {
         // This is internal, usually called by action
         const request = await ctx.db.get(args.requestId);
         if (!request) throw new Error("Request not found");
+
+        const requester = await ctx.db.get(request.requesterId);
 
         // Search for an authority to record the signature name
         const owner = await ctx.db
@@ -182,6 +185,17 @@ export const internalCompleteSign = mutation({
                 signedBy: owner?.name || "Official Signatory",
                 signedAt: Date.now(),
             },
+        });
+
+        // Save meaningful metadata for the signed file
+        const safeName = `${(requester?.name || "user").trim().replace(/\s+/g, '_').toLowerCase()}-signed-document.pdf`;
+        await ctx.db.insert("file_metadata", {
+            storageId: args.signedFileId,
+            originalName: safeName,
+            fileType: "application/pdf",
+            fileSize: args.fileSize || 0,
+            uploadedBy: owner?._id || request.requesterId,
+            isProcessed: true,
         });
 
         // Audit Log

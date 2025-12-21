@@ -31,7 +31,7 @@ import {
     X,
     AlertTriangle
 } from "lucide-react";
-import { downloadFromUrl, cn } from "@/lib/utils";
+import { downloadFromUrl, cn, formatSafeFileName } from "@/lib/utils";
 import ChatBox from "@/components/chat/ChatBox";
 import PdfSignatureEditor from "@/components/esign/PdfSignatureEditor";
 import { embedSignaturesInPdf, SignaturePlacement } from "@/lib/esign-utils";
@@ -102,9 +102,10 @@ const RequestDetail = () => {
                 body: file,
             });
             const { storageId } = await result.json();
+            const safeName = formatSafeFileName(request.customer?.name || "Customer", "Signature_Request", file.name);
             await saveFileMetadata({
                 storageId,
-                originalName: file.name,
+                originalName: safeName,
                 fileType: file.type,
                 fileSize: file.size,
             });
@@ -139,9 +140,10 @@ const RequestDetail = () => {
             const { storageId } = await result.json();
 
             // 3. Save Metadata
+            const safeName = formatSafeFileName(user?.name || "User", "Signed_Document", "Signed_Declaration.pdf");
             await saveFileMetadata({
                 storageId,
-                originalName: "Signed_Declaration.pdf",
+                originalName: safeName,
                 fileType: "application/pdf",
                 fileSize: signedFile.size,
             });
@@ -203,9 +205,10 @@ const RequestDetail = () => {
             });
             const { storageId } = await result.json();
             // 3. Save Metadata
+            const safeName = formatSafeFileName(request.customer?.name || "Customer", request.service?.name || "Result", file.name);
             await saveFileMetadata({
                 storageId,
-                originalName: file.name,
+                originalName: safeName,
                 fileType: file.type,
                 fileSize: file.size,
             });

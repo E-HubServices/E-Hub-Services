@@ -147,6 +147,7 @@ export const applyEsignAndSeal = action({
         await ctx.runMutation(api.esign.internalCompleteSign, {
             requestId: args.requestId,
             signedFileId,
+            fileSize: finalPdf.length,
         });
 
         console.log(`[Action] Endorsement complete! New File ID: ${signedFileId}`);
