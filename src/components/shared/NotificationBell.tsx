@@ -39,11 +39,20 @@ const NotificationBell = () => {
         }
     };
 
+    const hasPriorityUnread = notifications?.some(n => !n.isRead && (n.type === "signature_request" || n.type === "esign_request"));
+
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-primary/20 transition-all">
-                    <Bell className="h-5 w-5 text-slate-400 group-hover:text-primary transition-colors" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                        "relative h-10 w-10 rounded-2xl bg-white border border-slate-100 shadow-sm group hover:border-primary/20 transition-all",
+                        hasPriorityUnread && "ring-2 ring-red-500 animate-pulse bg-red-50"
+                    )}
+                >
+                    <Bell className={cn("h-5 w-5 text-slate-400 group-hover:text-primary transition-colors", hasPriorityUnread && "text-red-500")} />
                     {unreadCount && unreadCount > 0 ? (
                         <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm">
                             {unreadCount > 9 ? "9+" : unreadCount}

@@ -211,10 +211,7 @@ const PdfSignatureEditor = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-[100vw] w-full h-[100vh] max-h-[100vh] overflow-hidden flex flex-col p-0 m-0 rounded-none lg:max-w-[95vw] lg:max-h-[95vh] lg:rounded-lg lg:m-4">
                 <DialogHeader className="px-4 py-3 border-b shrink-0 bg-white">
-                    <div className="flex items-center justify-between">
-                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Sign Document</DialogTitle>
-                        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}><X className="h-5 w-5" /></Button>
-                    </div>
+                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Sign Document</DialogTitle>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
@@ -328,13 +325,27 @@ const PdfSignatureEditor = ({
                         <div className="p-6 space-y-4 flex-1">
                             {!isMobile && <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Toolbar</h3>}
 
-                            <Button
-                                className="w-full h-12 bg-primary hover:bg-primary/90 text-slate-950 font-bold shadow-lg"
-                                onClick={() => setIsDrawerOpen(true)}
-                            >
-                                <PenTool className="h-4 w-4 mr-2" />
-                                New Signature
-                            </Button>
+                            <div className="grid grid-cols-2 gap-3">
+                                <Button
+                                    className="h-12 bg-primary hover:bg-primary/90 text-slate-950 font-bold shadow-lg"
+                                    onClick={() => setIsDrawerOpen(true)}
+                                >
+                                    <PenTool className="h-4 w-4 mr-2" />
+                                    New
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-12 border-2 border-primary/20 hover:bg-primary/5 text-slate-900 font-bold"
+                                    onClick={() => {
+                                        const sig = activeId ? signatures.find(s => s.id === activeId) : signatures[signatures.length - 1];
+                                        if (sig) handleDuplicate({ stopPropagation: () => { } } as any, sig);
+                                    }}
+                                    disabled={signatures.length === 0}
+                                >
+                                    <CopyPlus className="h-4 w-4 mr-2" />
+                                    Duplicate
+                                </Button>
+                            </div>
 
                             {!isMobile && signatures.length > 0 && (
                                 <div className="pt-4 space-y-2">

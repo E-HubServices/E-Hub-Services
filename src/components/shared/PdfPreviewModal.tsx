@@ -29,7 +29,7 @@ const PdfPreviewModal = ({ isOpen, onClose, url, title, fileName }: PdfPreviewMo
                             Secure Document Preview
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mr-8">
                         <Button
                             variant="outline"
                             size="sm"
@@ -37,14 +37,6 @@ const PdfPreviewModal = ({ isOpen, onClose, url, title, fileName }: PdfPreviewMo
                             onClick={() => window.open(url, "_blank")}
                         >
                             <ExternalLink className="h-3.5 w-3.5 mr-1" /> Open
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={onClose}
-                        >
-                            <X className="h-4 w-4" />
                         </Button>
                     </div>
                 </DialogHeader>
