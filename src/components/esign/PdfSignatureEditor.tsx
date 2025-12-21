@@ -60,6 +60,7 @@ const PdfSignatureEditor = ({
     const [resizingSignature, setResizingSignature] = useState<string | null>(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+    const [pageDimensions, setPageDimensions] = useState({ width: 0, height: 0 });
 
     const signatureCanvasRef = useRef<SignatureCanvas>(null);
     const pdfContainerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +68,11 @@ const PdfSignatureEditor = ({
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
         setNumPages(numPages);
+    };
+
+    const onPageLoadSuccess = (page: any) => {
+        const viewport = page.getViewport({ scale: 1 });
+        setPageDimensions({ width: viewport.width, height: viewport.height });
     };
 
     const handleClearCanvas = () => {
@@ -92,8 +98,10 @@ const PdfSignatureEditor = ({
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
+
+            // If pixel is close to white, make it transparent
             if (r > 250 && g > 250 && b > 250) {
-                data[i + 3] = 0;
+                data[i + 3] = 0; // Set alpha to 0
             }
         }
 
@@ -102,21 +110,17 @@ const PdfSignatureEditor = ({
     };
 
     const handleSaveSignature = () => {
-        if (signatureCanvasRef.current?.isEmpty()) {
-            return;
-        }
-
         const dataUrl = createTransparentSignature();
         if (!dataUrl) return;
 
         const newSignature: SignaturePlacement = {
             id: `sig-${Date.now()}`,
             dataUrl,
-            // Store coordinates in raw PDF points (100 / scale)
-            x: 100 / scale,
-            y: 100 / scale,
-            width: 200 / scale,
-            height: 100 / scale,
+            // Initial placement: center of the current view in points
+            x: pageDimensions.width > 0 ? (pageDimensions.width / 2) - 75 : 100,
+            y: pageDimensions.height > 0 ? (pageDimensions.height / 2) - 40 : 100,
+            width: 150,
+            height: 80,
             pageNumber: currentPage
         };
 
@@ -137,7 +141,9 @@ const PdfSignatureEditor = ({
 
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-        const rect = (e.target as HTMLElement).getBoundingClientRect();
+
+        // Use currentTarget to get the signature overlay div itself
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 
         setDragOffset({
             x: clientX - rect.left,
@@ -239,7 +245,7 @@ const PdfSignatureEditor = ({
 
                 {/* Main Content */}
                 <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0 relative">
-                    {/* PDF Viewer - Full Screen */}
+                    {/* PDF Viewer Area */}
                     <div className="flex-1 flex flex-col bg-slate-50 lg:border-r min-h-0">
                         {/* PDF Controls */}
                         <div className="p-2 sm:p-3 bg-white border-b flex items-center justify-between gap-2 shrink-0">
@@ -304,14 +310,14 @@ const PdfSignatureEditor = ({
                         {/* SCROLLABLE PDF Container */}
                         <div
                             ref={pdfContainerRef}
-                            className="flex-1 overflow-auto p-2 sm:p-4 lg:p-8 flex items-start justify-center relative touch-none bg-slate-100"
+                            className="flex-1 overflow-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center relative touch-none bg-slate-100"
                             onMouseMove={handleMouseMove}
                             onTouchMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
                             onTouchEnd={handleMouseUp}
                             onMouseLeave={handleMouseUp}
                         >
-                            <div ref={pageWrapperRef} className="relative shadow-xl">
+                            <div className="flex flex-col items-center shadow-2xl">
                                 <Document
                                     file={pdfUrl}
                                     onLoadSuccess={onDocumentLoadSuccess}
@@ -321,72 +327,75 @@ const PdfSignatureEditor = ({
                                         </div>
                                     }
                                 >
-                                    <Page
-                                        pageNumber={currentPage}
-                                        scale={scale}
-                                        renderTextLayer={true}
-                                        renderAnnotationLayer={true}
-                                        className="max-w-full"
-                                    />
-                                </Document>
-
-                                {/* Signature Overlays - Rendered by multiplying points by scale */}
-                                {currentPageSignatures.map((sig) => (
-                                    <div
-                                        key={sig.id}
-                                        className={cn(
-                                            "absolute border-2 border-dashed border-primary cursor-move group touch-none",
-                                            (draggedSignature === sig.id || resizingSignature === sig.id) && "border-solid shadow-2xl ring-4 ring-primary/30 z-50"
-                                        )}
-                                        style={{
-                                            left: `${sig.x * scale}px`,
-                                            top: `${sig.y * scale}px`,
-                                            width: `${sig.width * scale}px`,
-                                            height: `${sig.height * scale}px`,
-                                        }}
-                                        onMouseDown={(e) => handleMouseDown(e, sig.id)}
-                                        onTouchStart={(e) => handleMouseDown(e, sig.id)}
-                                    >
-                                        <img
-                                            src={sig.dataUrl}
-                                            alt="Signature"
-                                            className="w-full h-full object-contain pointer-events-none"
+                                    <div ref={pageWrapperRef} className="relative bg-white leading-[0]">
+                                        <Page
+                                            pageNumber={currentPage}
+                                            scale={scale}
+                                            onLoadSuccess={onPageLoadSuccess}
+                                            renderTextLayer={true}
+                                            renderAnnotationLayer={true}
+                                            className="max-w-full"
                                         />
 
+                                        {/* Signature Overlays - Rendered by multiplying points by scale */}
+                                        {currentPageSignatures.map((sig) => (
+                                            <div
+                                                key={sig.id}
+                                                className={cn(
+                                                    "absolute border-2 border-dashed border-primary cursor-move group touch-none select-none",
+                                                    (draggedSignature === sig.id || resizingSignature === sig.id) && "border-solid shadow-2xl ring-4 ring-primary/30 z-50"
+                                                )}
+                                                style={{
+                                                    left: `${sig.x * scale}px`,
+                                                    top: `${sig.y * scale}px`,
+                                                    width: `${sig.width * scale}px`,
+                                                    height: `${sig.height * scale}px`,
+                                                    zIndex: draggedSignature === sig.id ? 100 : 10,
+                                                }}
+                                                onMouseDown={(e) => handleMouseDown(e, sig.id)}
+                                                onTouchStart={(e) => handleMouseDown(e, sig.id)}
+                                            >
+                                                <img
+                                                    src={sig.dataUrl}
+                                                    alt="Signature"
+                                                    className="w-full h-full object-contain pointer-events-none"
+                                                />
 
-                                        {/* Delete Button - Always Visible */}
-                                        <Button
-                                            variant="destructive"
-                                            size="icon"
-                                            className="absolute -top-3 -right-3 h-7 w-7 sm:h-6 sm:w-6 rounded-full shadow-lg z-10"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteSignature(sig.id);
-                                            }}
-                                        >
-                                            <X className="h-4 w-4 sm:h-3 sm:w-3" />
-                                        </Button>
+                                                {/* Delete Button - Always Visible */}
+                                                <Button
+                                                    variant="destructive"
+                                                    size="icon"
+                                                    className="absolute -top-3 -right-3 h-7 w-7 sm:h-6 sm:w-6 rounded-full shadow-lg z-10"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteSignature(sig.id);
+                                                    }}
+                                                >
+                                                    <X className="h-4 w-4 sm:h-3 sm:w-3" />
+                                                </Button>
 
-                                        {/* Drag Indicator - Always Visible */}
-                                        <div className="absolute -top-3 -left-3 h-7 w-7 sm:h-6 sm:w-6 bg-slate-900 rounded-full shadow-lg z-10 flex items-center justify-center border-2 border-white cursor-move">
-                                            <Move className="h-4 w-4 sm:h-3 sm:w-3 text-white" />
-                                        </div>
+                                                {/* Drag Indicator - Always Visible */}
+                                                <div className="absolute -top-3 -left-3 h-7 w-7 sm:h-6 sm:w-6 bg-slate-900 rounded-full shadow-lg z-10 flex items-center justify-center border-2 border-white cursor-move">
+                                                    <Move className="h-4 w-4 sm:h-3 sm:w-3 text-white" />
+                                                </div>
 
-                                        {/* Resize Handle - Always Visible */}
-                                        <div
-                                            className="absolute -bottom-3 -right-3 h-8 w-8 sm:h-7 sm:w-7 bg-primary rounded-full cursor-nwse-resize shadow-lg z-10 flex items-center justify-center touch-none border-2 border-white"
-                                            onMouseDown={(e) => handleResizeStart(e, sig.id)}
-                                            onTouchStart={(e) => handleResizeStart(e, sig.id)}
-                                        >
-                                            <Maximize2 className="h-4 w-4 text-white" />
-                                        </div>
+                                                {/* Resize Handle - Always Visible */}
+                                                <div
+                                                    className="absolute -bottom-3 -right-3 h-8 w-8 sm:h-7 sm:w-7 bg-primary rounded-full cursor-nwse-resize shadow-lg z-10 flex items-center justify-center touch-none border-2 border-white"
+                                                    onMouseDown={(e) => handleResizeStart(e, sig.id)}
+                                                    onTouchStart={(e) => handleResizeStart(e, sig.id)}
+                                                >
+                                                    <Maximize2 className="h-4 w-4 text-white" />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                </Document>
                             </div>
                         </div>
                     </div>
 
-                    {/* Desktop: Side Panel */}
+                    {/* Side Panel (Desktop Only) */}
                     {!isMobile && (
                         <div className="w-96 flex flex-col bg-white">
                             <div className="p-6 space-y-4 flex-1 overflow-y-auto">
@@ -471,7 +480,7 @@ const PdfSignatureEditor = ({
 
                     {/* Mobile: Bottom Action Bar */}
                     {isMobile && (
-                        <div className="p-3 bg-white border-t space-y-2 shrink-0 z-10">
+                        <div className="p-3 bg-white border-t space-y-2 shrink-0 z-10 font-[inherit]">
                             {signatures.length > 0 && (
                                 <div className="flex items-center justify-between text-xs text-slate-600 px-1">
                                     <span className="font-bold">{signatures.length} signature(s) placed</span>
@@ -507,64 +516,64 @@ const PdfSignatureEditor = ({
                             </div>
                         </div>
                     )}
+                </div>
 
-                    {/* Signature Drawing Drawer (Mobile & Desktop) */}
-                    {isDrawerOpen && (
+                {/* Signature Drawing Drawer (Mobile & Desktop) */}
+                {isDrawerOpen && (
+                    <div
+                        className="fixed inset-0 bg-black/50 z-[100] flex items-end lg:items-center lg:justify-center"
+                        onClick={() => setIsDrawerOpen(false)}
+                    >
                         <div
-                            className="fixed inset-0 bg-black/50 z-50 flex items-end lg:items-center lg:justify-center"
-                            onClick={() => setIsDrawerOpen(false)}
+                            className="bg-white w-full lg:w-[500px] rounded-t-2xl lg:rounded-2xl shadow-2xl animate-in slide-in-from-bottom lg:slide-in-from-bottom-0 duration-300"
+                            onClick={(e) => e.stopPropagation()}
                         >
-                            <div
-                                className="bg-white w-full lg:w-[500px] rounded-t-2xl lg:rounded-2xl shadow-2xl animate-in slide-in-from-bottom lg:slide-in-from-bottom-0 duration-300"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <div className="p-4 sm:p-6 space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-lg font-black uppercase">Draw Your Signature</h3>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setIsDrawerOpen(false)}
-                                            className="h-8 w-8"
-                                        >
-                                            <X className="h-5 w-5" />
-                                        </Button>
-                                    </div>
+                            <div className="p-4 sm:p-6 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-black uppercase tracking-tight">Draw Your Signature</h3>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setIsDrawerOpen(false)}
+                                        className="h-8 w-8"
+                                    >
+                                        <X className="h-5 w-5" />
+                                    </Button>
+                                </div>
 
-                                    <div className="border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-inner">
-                                        <SignatureCanvas
-                                            ref={signatureCanvasRef}
-                                            canvasProps={{
-                                                width: isMobile ? Math.min(window.innerWidth - 64, 450) : 450,
-                                                height: 220,
-                                                className: "signature-canvas touch-action-none"
-                                            }}
-                                            backgroundColor="rgb(255, 255, 255)"
-                                        />
-                                    </div>
+                                <div className="border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-inner">
+                                    <SignatureCanvas
+                                        ref={signatureCanvasRef}
+                                        canvasProps={{
+                                            width: isMobile ? Math.min(window.innerWidth - 64, 450) : 450,
+                                            height: 220,
+                                            className: "signature-canvas touch-action-none"
+                                        }}
+                                        backgroundColor="rgb(255, 255, 255)"
+                                    />
+                                </div>
 
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleClearCanvas}
-                                            className="flex-1 h-12"
-                                        >
-                                            <RotateCcw className="h-4 w-4 mr-2" />
-                                            Clear
-                                        </Button>
-                                        <Button
-                                            onClick={handleSaveSignature}
-                                            className="flex-1 bg-india-green hover:bg-india-green/90 text-white h-12 font-bold"
-                                        >
-                                            <Check className="h-4 w-4 mr-2" />
-                                            Add to Document
-                                        </Button>
-                                    </div>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleClearCanvas}
+                                        className="flex-1 h-12 font-bold"
+                                    >
+                                        <RotateCcw className="h-4 w-4 mr-2" />
+                                        Clear
+                                    </Button>
+                                    <Button
+                                        onClick={handleSaveSignature}
+                                        className="flex-1 bg-india-green hover:bg-india-green/90 text-white h-12 font-bold"
+                                    >
+                                        <Check className="h-4 w-4 mr-2" />
+                                        Add to Document
+                                    </Button>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );
