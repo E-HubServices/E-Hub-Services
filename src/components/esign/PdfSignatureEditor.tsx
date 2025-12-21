@@ -63,6 +63,7 @@ const PdfSignatureEditor = ({
 
     const signatureCanvasRef = useRef<SignatureCanvas>(null);
     const pdfContainerRef = useRef<HTMLDivElement>(null);
+    const pageWrapperRef = useRef<HTMLDivElement>(null);
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
         setNumPages(numPages);
@@ -111,10 +112,11 @@ const PdfSignatureEditor = ({
         const newSignature: SignaturePlacement = {
             id: `sig-${Date.now()}`,
             dataUrl,
-            x: 100,
-            y: 100,
-            width: 200,
-            height: 100,
+            // Store coordinates in raw PDF points (100 / scale)
+            x: 100 / scale,
+            y: 100 / scale,
+            width: 200 / scale,
+            height: 100 / scale,
             pageNumber: currentPage
         };
 
@@ -163,19 +165,21 @@ const PdfSignatureEditor = ({
     };
 
     const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!pdfContainerRef.current) return;
+        if (!pageWrapperRef.current) return;
 
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-        const containerRect = pdfContainerRef.current.getBoundingClientRect();
+        const containerRect = pageWrapperRef.current.getBoundingClientRect();
 
         if (draggedSignature) {
-            const newX = clientX - containerRect.left - dragOffset.x;
-            const newY = clientY - containerRect.top - dragOffset.y;
+            // Calculate pixel position relative to the page wrapper
+            const pixelX = clientX - containerRect.left - dragOffset.x;
+            const pixelY = clientY - containerRect.top - dragOffset.y;
 
+            // Convert pixels to PDF points
             setSignatures(signatures.map(sig =>
                 sig.id === draggedSignature
-                    ? { ...sig, x: Math.max(0, newX), y: Math.max(0, newY) }
+                    ? { ...sig, x: Math.max(0, pixelX / scale), y: Math.max(0, pixelY / scale) }
                     : sig
             ));
         }
@@ -186,8 +190,9 @@ const PdfSignatureEditor = ({
 
             setSignatures(signatures.map(sig => {
                 if (sig.id === resizingSignature) {
-                    const newWidth = Math.max(80, resizeStart.width + deltaX);
-                    const newHeight = Math.max(50, resizeStart.height + deltaY);
+                    // resizeStart width/height are already in points
+                    const newWidth = Math.max(50, resizeStart.width + (deltaX / scale));
+                    const newHeight = Math.max(30, resizeStart.height + (deltaY / scale));
                     return { ...sig, width: newWidth, height: newHeight };
                 }
                 return sig;
@@ -306,7 +311,7 @@ const PdfSignatureEditor = ({
                             onTouchEnd={handleMouseUp}
                             onMouseLeave={handleMouseUp}
                         >
-                            <div className="relative shadow-xl">
+                            <div ref={pageWrapperRef} className="relative shadow-xl">
                                 <Document
                                     file={pdfUrl}
                                     onLoadSuccess={onDocumentLoadSuccess}
@@ -325,7 +330,7 @@ const PdfSignatureEditor = ({
                                     />
                                 </Document>
 
-                                {/* Signature Overlays - Always Draggable */}
+                                {/* Signature Overlays - Rendered by multiplying points by scale */}
                                 {currentPageSignatures.map((sig) => (
                                     <div
                                         key={sig.id}
@@ -334,10 +339,10 @@ const PdfSignatureEditor = ({
                                             (draggedSignature === sig.id || resizingSignature === sig.id) && "border-solid shadow-2xl ring-4 ring-primary/30 z-50"
                                         )}
                                         style={{
-                                            left: `${sig.x}px`,
-                                            top: `${sig.y}px`,
-                                            width: `${sig.width}px`,
-                                            height: `${sig.height}px`,
+                                            left: `${sig.x * scale}px`,
+                                            top: `${sig.y * scale}px`,
+                                            width: `${sig.width * scale}px`,
+                                            height: `${sig.height * scale}px`,
                                         }}
                                         onMouseDown={(e) => handleMouseDown(e, sig.id)}
                                         onTouchStart={(e) => handleMouseDown(e, sig.id)}
