@@ -15,7 +15,8 @@ import {
     Loader2,
     ChevronLeft,
     ChevronRight,
-    Maximize2
+    Maximize2,
+    Move
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -337,6 +338,7 @@ const PdfSignatureEditor = ({
                                             className="w-full h-full object-contain pointer-events-none"
                                         />
 
+
                                         {/* Delete Button - Always Visible */}
                                         <Button
                                             variant="destructive"
@@ -349,6 +351,11 @@ const PdfSignatureEditor = ({
                                         >
                                             <X className="h-4 w-4 sm:h-3 sm:w-3" />
                                         </Button>
+
+                                        {/* Drag Indicator - Always Visible */}
+                                        <div className="absolute -top-3 -left-3 h-7 w-7 sm:h-6 sm:w-6 bg-slate-900 rounded-full shadow-lg z-10 flex items-center justify-center border-2 border-white cursor-move">
+                                            <Move className="h-4 w-4 sm:h-3 sm:w-3 text-white" />
+                                        </div>
 
                                         {/* Resize Handle - Always Visible */}
                                         <div
