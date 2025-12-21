@@ -17,7 +17,8 @@ import {
     ChevronRight,
     Maximize2,
     Move,
-    Info
+    Info,
+    CopyPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -188,6 +189,18 @@ const PdfSignatureEditor = ({
         setSignatures(prev => prev.filter(s => s.id !== id));
     };
 
+    const handleDuplicate = (e: React.MouseEvent | React.TouchEvent, sig: SignaturePlacement) => {
+        e.stopPropagation();
+        const newSig: SignaturePlacement = {
+            ...sig,
+            id: `sig-${Date.now()}`,
+            // Offset the duplicate slightly to make it obvious
+            x: sig.x + 20,
+            y: sig.y + 20,
+        };
+        setSignatures(prev => [...prev, newSig]);
+    };
+
     const handleSubmit = () => {
         if (signatures.length > 0) onSignComplete(signatures);
     };
@@ -283,6 +296,15 @@ const PdfSignatureEditor = ({
                                                 <div className="absolute -top-3 -left-3 h-6 w-6 bg-slate-900 text-white rounded-full flex items-center justify-center border-2 border-white shadow-lg">
                                                     <Move className="h-3 w-3" />
                                                 </div>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="icon"
+                                                    className="absolute -bottom-3 -left-3 h-6 w-6 rounded-full shadow-lg border border-slate-200"
+                                                    onClick={(e) => handleDuplicate(e, sig)}
+                                                    title="Duplicate Signature"
+                                                >
+                                                    <CopyPlus className="h-3 w-3 text-slate-700" />
+                                                </Button>
                                                 <div
                                                     className="absolute -bottom-3 -right-3 h-7 w-7 bg-primary text-white rounded-full flex items-center justify-center cursor-nwse-resize border-2 border-white shadow-lg touch-none"
                                                     onMouseDown={(e) => startResizing(e, sig.id)}
