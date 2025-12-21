@@ -35,6 +35,7 @@ import { downloadFromUrl, cn } from "@/lib/utils";
 import ChatBox from "@/components/chat/ChatBox";
 import PdfSignatureEditor from "@/components/esign/PdfSignatureEditor";
 import { embedSignaturesInPdf, SignaturePlacement } from "@/lib/esign-utils";
+import PdfPreviewModal from "@/components/shared/PdfPreviewModal";
 
 const RequestDetail = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -65,6 +66,11 @@ const RequestDetail = () => {
     const [isSigninOpen, setIsSigninOpen] = useState(false);
     const [isSigning, setIsSigning] = useState(false);
     const [requestingSignature, setRequestingSignature] = useState(false);
+    const [previewConfig, setPreviewConfig] = useState<{ isOpen: boolean; url: string; title: string }>({
+        isOpen: false,
+        url: "",
+        title: "",
+    });
 
     const unreadCount = useQuery(api.messages.getRequestUnreadCount,
         requestId ? { serviceRequestId: requestId as Id<"service_requests"> } : "skip"
@@ -79,6 +85,10 @@ const RequestDetail = () => {
 
     const handleLogout = async () => {
         await signOut({ redirectUrl: "/" });
+    };
+
+    const openPreview = (url: string, title: string) => {
+        setPreviewConfig({ isOpen: true, url, title });
     };
 
     const handleRequestSignature = async (file: File) => {
@@ -399,24 +409,33 @@ const RequestDetail = () => {
                                                 {/* Final Output (If completed) */}
                                                 {request.status === "completed" && request.outputFile && (
                                                     <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                                                        <div className="flex items-center justify-between">
+                                                        <div className="flex items-center justify-between gap-4">
                                                             <div className="flex items-center gap-3">
                                                                 <div className="w-12 h-12 rounded-xl bg-india-green/10 flex items-center justify-center">
                                                                     <Shield className="h-6 w-6 text-india-green" />
                                                                 </div>
                                                                 <div>
                                                                     <p className="font-bold text-foreground font-heading">Final Document Ready</p>
-                                                                    <p className="text-xs text-muted-foreground">Certified & Verified by E-Hub Services</p>
+                                                                    <p className="text-xs text-muted-foreground font-medium">Certified & Verified by E-Hub Services</p>
                                                                 </div>
                                                             </div>
-                                                            {/* Direct link using backend generated URL */}
-                                                            <Button
-                                                                className="bg-india-green hover:bg-india-green text-white shadow-md"
-                                                                disabled={!requestFiles?.outputFile?.url}
-                                                                onClick={() => downloadFromUrl(requestFiles.outputFile!.url!, requestFiles.outputFile!.originalName || "Result.pdf")}
-                                                            >
-                                                                <Download className="h-4 w-4 mr-2" /> Download Result
-                                                            </Button>
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    className="border-green-200 hover:bg-green-100 text-green-700 font-bold"
+                                                                    disabled={!requestFiles?.outputFile?.url}
+                                                                    onClick={() => openPreview(requestFiles.outputFile!.url!, "Result Document")}
+                                                                >
+                                                                    <Eye className="h-4 w-4 mr-2" /> Preview
+                                                                </Button>
+                                                                <Button
+                                                                    className="bg-india-green hover:bg-india-green text-white shadow-md font-bold"
+                                                                    disabled={!requestFiles?.outputFile?.url}
+                                                                    onClick={() => downloadFromUrl(requestFiles.outputFile!.url!, requestFiles.outputFile!.originalName || "Result.pdf")}
+                                                                >
+                                                                    <Download className="h-4 w-4 mr-2" /> Download
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
@@ -431,12 +450,21 @@ const RequestDetail = () => {
                                                         <p className="text-sm text-slate-600">
                                                             Your partner has requested a signature on a document. Please review and sign to proceed.
                                                         </p>
-                                                        <Button
-                                                            onClick={() => setIsSigninOpen(true)}
-                                                            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold"
-                                                        >
-                                                            Sign Document Now
-                                                        </Button>
+                                                        <div className="flex gap-2">
+                                                            <Button
+                                                                onClick={() => openPreview(unsignedFileUrl!, "Requested Document")}
+                                                                variant="outline"
+                                                                className="flex-1 border-amber-200 text-amber-700 font-bold"
+                                                            >
+                                                                <Eye className="h-4 w-4 mr-2" /> Preview
+                                                            </Button>
+                                                            <Button
+                                                                onClick={() => setIsSigninOpen(true)}
+                                                                className="flex-[2] bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                                                            >
+                                                                Sign Document Now
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 )}
 
@@ -482,8 +510,8 @@ const RequestDetail = () => {
                                                                             <Button
                                                                                 variant="ghost"
                                                                                 size="sm"
-                                                                                className="w-full text-xs"
-                                                                                onClick={() => window.open(unsignedFileUrl, '_blank')}
+                                                                                className="w-full text-xs font-bold"
+                                                                                onClick={() => openPreview(unsignedFileUrl!, "Service Document")}
                                                                             >
                                                                                 <Eye className="h-3 w-3 mr-2" /> View Sent Document
                                                                             </Button>
@@ -495,16 +523,28 @@ const RequestDetail = () => {
                                                                             <CheckCircle2 className="h-4 w-4" />
                                                                             Signature Received
                                                                         </div>
-                                                                        {signedFileUrl && (
-                                                                            <Button
-                                                                                variant="secondary"
-                                                                                size="sm"
-                                                                                className="w-full text-xs"
-                                                                                onClick={() => downloadFromUrl(signedFileUrl!, "Signed_Declaration.pdf")}
-                                                                            >
-                                                                                <Download className="h-3 w-3 mr-2" /> Download Signed PDF
-                                                                            </Button>
-                                                                        )}
+                                                                        <div className="flex gap-2">
+                                                                            {signedFileUrl && (
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="sm"
+                                                                                    className="flex-1 text-xs font-bold"
+                                                                                    onClick={() => openPreview(signedFileUrl!, "Signed Document")}
+                                                                                >
+                                                                                    <Eye className="h-3 w-3 mr-2" /> Preview
+                                                                                </Button>
+                                                                            )}
+                                                                            {signedFileUrl && (
+                                                                                <Button
+                                                                                    variant="secondary"
+                                                                                    size="sm"
+                                                                                    className="flex-1 text-xs font-bold"
+                                                                                    onClick={() => downloadFromUrl(signedFileUrl!, "Signed_Declaration.pdf")}
+                                                                                >
+                                                                                    <Download className="h-3 w-3 mr-2" /> Download
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
                                                                         <p className="text-[10px] text-green-600 italic">✓ You can now process and upload the final result below</p>
                                                                     </div>
                                                                 ) : null}
@@ -685,6 +725,12 @@ const RequestDetail = () => {
                         isSubmitting={isSigning}
                     />
                 </div>
+                <PdfPreviewModal
+                    isOpen={previewConfig.isOpen}
+                    onClose={() => setPreviewConfig(prev => ({ ...prev, isOpen: false }))}
+                    url={previewConfig.url}
+                    title={previewConfig.title}
+                />
             </Authenticated>
         </>
     );
