@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 // Status configuration for style and icons
 const statusConfig = {
@@ -140,20 +141,7 @@ const CustomerDashboard = () => {
 
                                 <div className="flex items-center gap-4">
                                     <div className="h-8 w-px bg-slate-200 hidden sm:block mx-1" />
-                                    <div className="relative group mr-2">
-                                        <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center border border-slate-100 shadow-sm cursor-help" title="Chat is available within each request">
-                                            <MessageSquare className="h-5 w-5 text-slate-400" />
-                                        </div>
-                                        {unreadCount && unreadCount > 0 ? (
-                                            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white text-[10px] font-black flex items-center justify-center rounded-full border-2 border-white shadow-sm animate-pulse">
-                                                {unreadCount}
-                                            </span>
-                                        ) : null}
-                                        {/* Tooltip on hover */}
-                                        <div className="absolute top-12 right-0 w-48 bg-slate-900 text-white text-[10px] font-black p-3 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-2xl uppercase tracking-widest leading-relaxed">
-                                            Click on "Details" in any request below to open the chat.
-                                        </div>
-                                    </div>
+                                    <NotificationBell />
                                     <Link to="/profile" className="flex items-center gap-3 hover:bg-slate-50 p-1.5 rounded-2xl transition-all border border-transparent hover:border-slate-100 group">
                                         <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary transition-colors">
                                             <User className="h-4 w-4 text-primary group-hover:text-white" />

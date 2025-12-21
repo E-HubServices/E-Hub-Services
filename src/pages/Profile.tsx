@@ -7,6 +7,7 @@ import { useQuery, useMutation, Authenticated, Unauthenticated } from "convex/re
 import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 const ProfilePage = () => {
     const user = useQuery(api.users.getProfile);
@@ -72,6 +73,7 @@ const ProfilePage = () => {
                             </div>
 
                             <div className="flex items-center gap-3">
+                                <NotificationBell />
                                 <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg">
                                     <Shield className="h-6 w-6 text-primary" />
                                 </div>

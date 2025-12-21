@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 // Icon mapping for categories
 const getCategoryIcon = (categoryName: string) => {
@@ -137,6 +138,8 @@ const Services = () => {
                     </div>
                     <span className="text-sm font-medium hidden sm:block">{user?.name || 'User'}</span>
                   </div>
+                  <div className="h-8 w-px bg-border hidden sm:block" />
+                  <NotificationBell />
                   <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-muted-foreground">
                     <LogOut className="h-4 w-4" />
                     <span className="hidden sm:inline">Logout</span>

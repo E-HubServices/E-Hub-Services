@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser } from "./utils/auth";
+import { createNotificationInternal } from "./notifications";
 
 // Create a new e-Sign / e-Seal request
 export const createEsignRequest = mutation({
@@ -43,14 +44,12 @@ export const createEsignRequest = mutation({
         // Notify authorities
         const owners = await ctx.db.query("users").filter(q => q.eq(q.field("role"), "shop_owner")).collect();
         for (const owner of owners) {
-            await ctx.db.insert("notifications", {
+            await createNotificationInternal(ctx, {
                 userId: owner._id,
                 title: "New E-Sign Request",
                 description: `${args.details.name} has requested an authorized e-sign.`,
                 type: "esign_request",
                 esignRequestId: requestId,
-                isRead: false,
-                createdAt: Date.now(),
             });
         }
 
@@ -145,14 +144,12 @@ export const updateEsignStatus = mutation({
             cancelled: "The e-sign request has been cancelled.",
         };
 
-        await ctx.db.insert("notifications", {
+        await createNotificationInternal(ctx, {
             userId: request.requesterId,
             title: esignStatusTitles[args.status] || "Status Update",
             description: esignStatusMessages[args.status] || `Status changed to ${args.status}`,
             type: "status_update",
             esignRequestId: args.requestId,
-            isRead: false,
-            createdAt: Date.now(),
         });
 
         return true;
@@ -236,14 +233,12 @@ export const internalCompleteSign = mutation({
         });
 
         // Notify requester
-        await ctx.db.insert("notifications", {
+        await createNotificationInternal(ctx, {
             userId: request.requesterId,
             title: "Document Signed Successfully",
             description: "Your document has been authorized and signed. You can download it now.",
             type: "esign_signed",
             esignRequestId: args.requestId,
-            isRead: false,
-            createdAt: Date.now(),
         });
 
         return true;

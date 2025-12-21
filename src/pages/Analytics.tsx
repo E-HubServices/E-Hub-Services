@@ -45,6 +45,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 const Analytics = () => {
     const user = useQuery(api.users.getProfile);
@@ -124,11 +125,14 @@ const Analytics = () => {
                             <img src="/logo.png" alt="E-Hub Logo" className="h-10 w-10 object-contain rounded-lg shadow-md bg-white border border-slate-100" />
                             <span className="font-heading text-lg font-bold text-slate-900 tracking-tight">Analytics & Insights</span>
                         </Link>
-                        <Link to="/dashboard/owner">
-                            <Button variant="ghost" size="sm" className="font-bold text-slate-700">
-                                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
-                            </Button>
-                        </Link>
+                        <div className="flex items-center gap-4">
+                            <NotificationBell />
+                            <Link to="/dashboard/owner">
+                                <Button variant="ghost" size="sm" className="font-bold text-slate-700">
+                                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 </header>
 

@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, getRequiredUser } from "./utils/auth";
+import { createNotificationInternal } from "./notifications";
 
 // Record a signed self-declaration
 export const submitSelfDeclaration = mutation({
@@ -39,14 +40,12 @@ export const submitSelfDeclaration = mutation({
 
     // Notify shop owner via notification
     if (request.shopOwnerId) {
-      await ctx.db.insert("notifications", {
+      await createNotificationInternal(ctx, {
         userId: request.shopOwnerId,
         title: "Document Signed",
         description: `Customer has signed the document for request ${args.serviceRequestId}.`,
         type: "signature_completed",
         serviceRequestId: args.serviceRequestId,
-        isRead: false,
-        createdAt: Date.now(),
       });
     }
   },
@@ -94,14 +93,12 @@ export const createServiceRequest = mutation({
     });
 
     // Create notification for customer
-    await ctx.db.insert("notifications", {
+    await createNotificationInternal(ctx, {
       userId: userId,
       title: "Request Created",
       description: "Service request created successfully." + (inputFiles.length > 0 ? ` Included ${inputFiles.length} document(s).` : ""),
       type: "request_created",
       serviceRequestId: requestId,
-      isRead: false,
-      createdAt: Date.now(),
     });
 
     // If there are input files, create a message for them specifically so they appear in chat
@@ -366,14 +363,12 @@ export const assignRequest = mutation({
     });
 
     // Create notification for customer
-    await ctx.db.insert("notifications", {
+    await createNotificationInternal(ctx, {
       userId: request.customerId,
       title: "Service Assigned",
       description: `Your request has been assigned to ${user.name}.`,
       type: "assignment",
       serviceRequestId: args.requestId,
-      isRead: false,
-      createdAt: Date.now(),
     });
 
     return { success: true };
@@ -434,14 +429,12 @@ export const updateRequestStatus = mutation({
       cancelled: "Request Cancelled",
     };
 
-    await ctx.db.insert("notifications", {
+    await createNotificationInternal(ctx, {
       userId: request.customerId,
       title: statusTitles[args.status],
       description: statusMessages[args.status] + (args.notes ? ` Note: ${args.notes}` : ""),
       type: "status_update",
       serviceRequestId: args.requestId,
-      isRead: false,
-      createdAt: Date.now(),
     });
 
     return { success: true };
@@ -563,14 +556,12 @@ export const requestCustomerSignature = mutation({
     });
 
     // Create notification for customer
-    await ctx.db.insert("notifications", {
+    await createNotificationInternal(ctx, {
       userId: request.customerId,
       title: "Signature Requested",
       description: "Action Required: Please sign the attached document to proceed.",
       type: "signature_request",
       serviceRequestId: args.requestId,
-      isRead: false,
-      createdAt: Date.now(),
     });
 
     return { success: true };

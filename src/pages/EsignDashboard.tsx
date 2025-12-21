@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { downloadFromUrl } from "@/lib/utils";
 import { EsignRequestModal } from "@/components/esign/EsignRequestModal";
 import { useClerk } from "@clerk/clerk-react";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 const EsignDashboard = () => {
     const { signOut } = useClerk();
@@ -77,6 +78,7 @@ const EsignDashboard = () => {
                             </div>
 
                             <div className="flex items-center gap-4">
+                                <NotificationBell />
                                 <Link to="/profile" className="flex items-center gap-2 pr-4 border-r border-slate-200 mr-2 hover:opacity-80 transition-opacity">
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                                         <User className="h-4 w-4 text-primary" />

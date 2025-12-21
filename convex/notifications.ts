@@ -78,7 +78,31 @@ export const markAllAsRead = mutation({
     },
 });
 
-// Helper for other modules
+import { GenericMutationCtx } from "convex/server";
+import { DataModel, Id } from "./_generated/dataModel";
+
+// Internal helper for other modules
+export async function createNotificationInternal(ctx: GenericMutationCtx<DataModel>, args: {
+    userId: Id<"users">;
+    title: string;
+    description: string;
+    type: string;
+    serviceRequestId?: Id<"service_requests">;
+    esignRequestId?: Id<"esign_requests">;
+}) {
+    return await ctx.db.insert("notifications", {
+        userId: args.userId,
+        title: args.title,
+        description: args.description,
+        type: args.type,
+        serviceRequestId: args.serviceRequestId,
+        esignRequestId: args.esignRequestId,
+        isRead: false,
+        isToastShown: false,
+        createdAt: Date.now(),
+    });
+}
+
 export const createNotification = mutation({
     args: {
         userId: v.id("users"),
@@ -89,11 +113,6 @@ export const createNotification = mutation({
         esignRequestId: v.optional(v.id("esign_requests")),
     },
     handler: async (ctx, args) => {
-        return await ctx.db.insert("notifications", {
-            ...args,
-            isRead: false,
-            isToastShown: false,
-            createdAt: Date.now(),
-        });
+        return await createNotificationInternal(ctx, args);
     }
 });

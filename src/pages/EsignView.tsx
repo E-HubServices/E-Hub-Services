@@ -20,6 +20,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import ChatBox from "@/components/chat/ChatBox";
 import { cn } from "@/lib/utils";
 import { X, MessageSquare } from "lucide-react";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 const EsignView = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -83,14 +84,17 @@ const EsignView = () => {
                                 </div>
                             </div>
 
-                            <Button
-                                onClick={handleDownload}
-                                disabled={!fileUrl}
-                                className="bg-primary hover:bg-primary text-slate-950 font-black uppercase text-xs px-8 rounded-xl shadow-lg shadow-primary/20"
-                            >
-                                <Download className="h-4 w-4 mr-2" />
-                                Download PDF
-                            </Button>
+                            <div className="flex items-center gap-4">
+                                <NotificationBell />
+                                <Button
+                                    onClick={handleDownload}
+                                    disabled={!fileUrl}
+                                    className="bg-primary hover:bg-primary text-slate-950 font-black uppercase text-xs px-8 rounded-xl shadow-lg shadow-primary/20"
+                                >
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download PDF
+                                </Button>
+                            </div>
                         </div>
                     </header>
 

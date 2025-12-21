@@ -36,6 +36,7 @@ import ChatBox from "@/components/chat/ChatBox";
 import PdfSignatureEditor from "@/components/esign/PdfSignatureEditor";
 import { embedSignaturesInPdf, SignaturePlacement } from "@/lib/esign-utils";
 import PdfPreviewModal from "@/components/shared/PdfPreviewModal";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 const RequestDetail = () => {
     const { requestId } = useParams<{ requestId: string }>();
@@ -274,7 +275,9 @@ const RequestDetail = () => {
                                     </div>
                                     <span className="text-sm font-medium hidden sm:block">{user?.name || 'User'}</span>
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-muted-foreground">
+                                <div className="h-8 w-px bg-border mx-2" />
+                                <NotificationBell />
+                                <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-muted-foreground ml-2">
                                     <LogOut className="h-4 w-4" />
                                     <span className="hidden sm:inline">Logout</span>
                                 </Button>

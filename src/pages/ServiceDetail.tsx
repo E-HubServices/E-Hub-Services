@@ -39,6 +39,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { cn, formatSafeFileName } from "@/lib/utils";
+import NotificationBell from "@/components/shared/NotificationBell";
 
 const ServiceDetail = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -158,6 +159,8 @@ const ServiceDetail = () => {
                   </div>
                   <span className="text-sm font-bold text-slate-900 hidden sm:block">{user?.name || 'User'}</span>
                 </div>
+                <div className="h-8 w-px bg-slate-200" />
+                <NotificationBell />
                 <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-2 text-slate-500 hover:text-red-600 font-bold transition-colors">
                   <LogOut className="h-4 w-4" />
                   <span className="hidden sm:inline">Logout</span>
