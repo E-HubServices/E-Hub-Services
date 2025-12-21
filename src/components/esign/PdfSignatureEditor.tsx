@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import SignatureCanvas from "react-signature-canvas";
 import { Button } from "@/components/ui/button";
@@ -53,17 +53,19 @@ const PdfSignatureEditor = ({
 }: PdfSignatureEditorProps) => {
     const [numPages, setNumPages] = useState<number>(0);
     const [currentPage, setCurrentPage] = useState<number>(1);
-    const [scale, setScale] = useState<number>(0.5); // Default 50%
+    const [scale, setScale] = useState<number>(0.6);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [signatures, setSignatures] = useState<SignaturePlacement[]>([]);
-    const [draggedSignature, setDraggedSignature] = useState<string | null>(null);
-    const [resizingSignature, setResizingSignature] = useState<string | null>(null);
+
+    // Tracking active interaction
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const [interactionMode, setInteractionMode] = useState<'drag' | 'resize' | null>(null);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-    const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+    const [resizeBase, setResizeBase] = useState({ x: 0, y: 0, w: 0, h: 0 });
+
     const [pageDimensions, setPageDimensions] = useState({ width: 0, height: 0 });
 
     const signatureCanvasRef = useRef<SignatureCanvas>(null);
-    const pdfContainerRef = useRef<HTMLDivElement>(null);
     const pageWrapperRef = useRef<HTMLDivElement>(null);
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
@@ -79,7 +81,6 @@ const PdfSignatureEditor = ({
         signatureCanvasRef.current?.clear();
     };
 
-    // Process canvas to create transparent PNG
     const createTransparentSignature = (): string | null => {
         const canvas = signatureCanvasRef.current?.getCanvas();
         if (!canvas) return null;
@@ -95,13 +96,9 @@ const PdfSignatureEditor = ({
         const data = imageData.data;
 
         for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-
-            // If pixel is close to white, make it transparent
-            if (r > 250 && g > 250 && b > 250) {
-                data[i + 3] = 0; // Set alpha to 0
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            if (r > 240 && g > 240 && b > 240) {
+                data[i + 3] = 0;
             }
         }
 
@@ -116,276 +113,182 @@ const PdfSignatureEditor = ({
         const newSignature: SignaturePlacement = {
             id: `sig-${Date.now()}`,
             dataUrl,
-            // Initial placement: center of the current view in points
-            x: pageDimensions.width > 0 ? (pageDimensions.width / 2) - 75 : 100,
-            y: pageDimensions.height > 0 ? (pageDimensions.height / 2) - 40 : 100,
+            // Center placement in points
+            x: pageDimensions.width > 0 ? (pageDimensions.width / 2) - 75 : 50,
+            y: pageDimensions.height > 0 ? (pageDimensions.height / 2) - 40 : 50,
             width: 150,
             height: 80,
             pageNumber: currentPage
         };
 
-        setSignatures([...signatures, newSignature]);
+        setSignatures(prev => [...prev, newSignature]);
         handleClearCanvas();
-        setIsDrawerOpen(false); // Close drawer after adding signature
+        setIsDrawerOpen(false);
     };
 
-    const handleDeleteSignature = (id: string) => {
-        setSignatures(signatures.filter(sig => sig.id !== id));
-    };
-
-    const handleMouseDown = (e: React.MouseEvent | React.TouchEvent, signatureId: string) => {
+    const startDragging = (e: React.MouseEvent | React.TouchEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
-        const signature = signatures.find(s => s.id === signatureId);
-        if (!signature) return;
-
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-
-        // Use currentTarget to get the signature overlay div itself
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 
-        setDragOffset({
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        });
-        setDraggedSignature(signatureId);
+        setInteractionMode('drag');
+        setActiveId(id);
+        setDragOffset({ x: clientX - rect.left, y: clientY - rect.top });
     };
 
-    const handleResizeStart = (e: React.MouseEvent | React.TouchEvent, signatureId: string) => {
+    const startResizing = (e: React.MouseEvent | React.TouchEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
-        const signature = signatures.find(s => s.id === signatureId);
-        if (!signature) return;
-
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        const signature = signatures.find(s => s.id === id);
+        if (!signature) return;
 
-        setResizingSignature(signatureId);
-        setResizeStart({
-            x: clientX,
-            y: clientY,
-            width: signature.width,
-            height: signature.height
-        });
+        setInteractionMode('resize');
+        setActiveId(id);
+        setResizeBase({ x: clientX, y: clientY, w: signature.width, h: signature.height });
     };
 
-    const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!pageWrapperRef.current) return;
+    const handleGlobalMove = (e: React.MouseEvent | React.TouchEvent) => {
+        if (!activeId || !interactionMode || !pageWrapperRef.current) return;
 
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
         const containerRect = pageWrapperRef.current.getBoundingClientRect();
 
-        if (draggedSignature) {
-            // Calculate pixel position relative to the page wrapper
+        if (interactionMode === 'drag') {
             const pixelX = clientX - containerRect.left - dragOffset.x;
             const pixelY = clientY - containerRect.top - dragOffset.y;
 
-            // Convert pixels to PDF points
-            setSignatures(signatures.map(sig =>
-                sig.id === draggedSignature
-                    ? { ...sig, x: Math.max(0, pixelX / scale), y: Math.max(0, pixelY / scale) }
+            setSignatures(prev => prev.map(sig =>
+                sig.id === activeId
+                    ? { ...sig, x: pixelX / scale, y: pixelY / scale }
+                    : sig
+            ));
+        } else if (interactionMode === 'resize') {
+            const deltaX = (clientX - resizeBase.x) / scale;
+            const deltaY = (clientY - resizeBase.y) / scale;
+
+            setSignatures(prev => prev.map(sig =>
+                sig.id === activeId
+                    ? { ...sig, width: Math.max(40, resizeBase.w + deltaX), height: Math.max(20, resizeBase.h + deltaY) }
                     : sig
             ));
         }
-
-        if (resizingSignature) {
-            const deltaX = clientX - resizeStart.x;
-            const deltaY = clientY - resizeStart.y;
-
-            setSignatures(signatures.map(sig => {
-                if (sig.id === resizingSignature) {
-                    // resizeStart width/height are already in points
-                    const newWidth = Math.max(50, resizeStart.width + (deltaX / scale));
-                    const newHeight = Math.max(30, resizeStart.height + (deltaY / scale));
-                    return { ...sig, width: newWidth, height: newHeight };
-                }
-                return sig;
-            }));
-        }
     };
 
-    const handleMouseUp = () => {
-        setDraggedSignature(null);
-        setResizingSignature(null);
+    const handleGlobalUp = () => {
+        setActiveId(null);
+        setInteractionMode(null);
+    };
+
+    const handleDelete = (id: string) => {
+        setSignatures(prev => prev.filter(s => s.id !== id));
     };
 
     const handleSubmit = () => {
-        if (signatures.length === 0) {
-            return;
-        }
-        onSignComplete(signatures);
+        if (signatures.length > 0) onSignComplete(signatures);
     };
 
-    const currentPageSignatures = signatures.filter(sig => sig.pageNumber === currentPage);
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-[100vw] w-full h-[100vh] max-h-[100vh] overflow-hidden flex flex-col p-0 m-0 rounded-none lg:max-w-[95vw] lg:max-h-[95vh] lg:rounded-lg lg:m-4">
-                <DialogHeader className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4 border-b shrink-0 bg-white z-10">
+                <DialogHeader className="px-4 py-3 border-b shrink-0 bg-white">
                     <div className="flex items-center justify-between">
-                        <DialogTitle className="text-base sm:text-2xl font-black uppercase tracking-tight">
-                            Sign Document
-                        </DialogTitle>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onOpenChange(false)}
-                            className="h-8 w-8"
-                        >
-                            <X className="h-5 w-5" />
-                        </Button>
+                        <DialogTitle className="text-xl font-black uppercase tracking-tight">Sign Document</DialogTitle>
+                        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}><X className="h-5 w-5" /></Button>
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-                        Place your signature on the document
-                    </p>
                 </DialogHeader>
 
-                {/* Main Content */}
-                <div className="flex-1 overflow-hidden flex flex-col lg:flex-row min-h-0 relative">
-                    {/* PDF Viewer Area */}
-                    <div className="flex-1 flex flex-col bg-slate-50 lg:border-r min-h-0">
-                        {/* PDF Controls */}
-                        <div className="p-2 sm:p-3 bg-white border-b flex items-center justify-between gap-2 shrink-0">
-                            <div className="flex items-center gap-1 sm:gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                    disabled={currentPage === 1}
-                                    className="h-8 px-2 sm:px-3"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                    <span className="hidden sm:inline ml-1">Prev</span>
-                                </Button>
-                                <span className="text-xs sm:text-sm font-bold px-1 sm:px-2">
-                                    {currentPage}/{numPages}
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(Math.min(numPages, currentPage + 1))}
-                                    disabled={currentPage === numPages}
-                                    className="h-8 px-2 sm:px-3"
-                                >
-                                    <span className="hidden sm:inline mr-1">Next</span>
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
+                <div className="flex-1 overflow-hidden flex flex-col lg:flex-row relative">
+                    {/* Toolbar / Viewer Area */}
+                    <div className="flex-1 flex flex-col bg-slate-100 min-h-0 border-r">
+                        <div className="p-2 bg-white border-b flex items-center justify-between gap-4 shrink-0 shadow-sm z-10">
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage <= 1}><ChevronLeft className="h-4 w-4" /></Button>
+                                <span className="text-sm font-bold">{currentPage} / {numPages}</span>
+                                <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(numPages, prev + 1))} disabled={currentPage >= numPages}><ChevronRight className="h-4 w-4" /></Button>
                             </div>
-
-                            <div className="flex items-center gap-1">
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setScale(Math.max(0.3, scale - 0.1))}
-                                    className="h-8 w-8"
-                                >
-                                    <ZoomOut className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
-                                <span className="text-xs sm:text-sm font-bold px-1 min-w-[45px] text-center">
-                                    {Math.round(scale * 100)}%
-                                </span>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setScale(Math.min(2, scale + 0.1))}
-                                    className="h-8 w-8"
-                                >
-                                    <ZoomIn className="h-3 w-3 sm:h-4 sm:w-4" />
-                                </Button>
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="icon" onClick={() => setScale(s => Math.max(0.2, s - 0.1))} className="h-8 w-8"><ZoomOut className="h-4 w-4" /></Button>
+                                <span className="text-xs font-bold w-12 text-center">{Math.round(scale * 100)}%</span>
+                                <Button variant="outline" size="icon" onClick={() => setScale(s => Math.min(2.5, s + 0.1))} className="h-8 w-8"><ZoomIn className="h-4 w-4" /></Button>
                             </div>
                         </div>
 
-                        {/* Signature Placement Alert */}
-                        <div className="bg-primary/10 border-b border-primary/20 px-4 py-2 flex items-center gap-3 shrink-0">
-                            <Info className="h-4 w-4 text-primary shrink-0" />
-                            <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-tight">
-                                <span className="text-primary uppercase tracking-tighter mr-1">Pro Tip:</span>
-                                Drag the signature to place it correctly. Use the <span className="text-primary italic">blue handle</span> to resize for maximum clarity. Ensure it doesn't overlap important text.
+                        {/* Instructional Banner */}
+                        <div className="bg-primary/10 border-b border-primary/20 px-4 py-1.5 flex items-center gap-2 shrink-0">
+                            <Info className="h-3.5 w-3.5 text-primary shrink-0" />
+                            <p className="text-[10px] font-bold text-slate-700 uppercase tracking-tighter">
+                                Drag signature to position &bull; use blue handle to resize
                             </p>
                         </div>
 
-                        {/* SCROLLABLE PDF Container */}
+                        {/* PDF Rendering Area */}
                         <div
-                            ref={pdfContainerRef}
-                            className="flex-1 overflow-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center relative touch-none bg-slate-100"
-                            onMouseMove={handleMouseMove}
-                            onTouchMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
-                            onTouchEnd={handleMouseUp}
-                            onMouseLeave={handleMouseUp}
+                            className="flex-1 overflow-auto p-4 sm:p-12 flex flex-col items-center relative touch-none select-none"
+                            onMouseMove={handleGlobalMove}
+                            onTouchMove={handleGlobalMove}
+                            onMouseUp={handleGlobalUp}
+                            onTouchEnd={handleGlobalUp}
+                            onMouseLeave={handleGlobalUp}
                         >
-                            <div className="flex flex-col items-center shadow-2xl">
+                            <div className="relative shadow-2xl bg-white leading-[0] w-fit mx-auto ring-1 ring-slate-200">
                                 <Document
                                     file={pdfUrl}
                                     onLoadSuccess={onDocumentLoadSuccess}
-                                    loading={
-                                        <div className="flex items-center justify-center p-20">
-                                            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                                        </div>
-                                    }
+                                    loading={<div className="p-20"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>}
                                 >
-                                    <div ref={pageWrapperRef} className="relative bg-white leading-[0]">
+                                    <div ref={pageWrapperRef} className="relative">
                                         <Page
                                             pageNumber={currentPage}
                                             scale={scale}
                                             onLoadSuccess={onPageLoadSuccess}
-                                            renderTextLayer={true}
-                                            renderAnnotationLayer={true}
-                                            className="max-w-full"
+                                            renderTextLayer={false}
+                                            renderAnnotationLayer={false}
                                         />
 
-                                        {/* Signature Overlays - Rendered by multiplying points by scale */}
-                                        {currentPageSignatures.map((sig) => (
+                                        {/* Overlays */}
+                                        {signatures.filter(s => s.pageNumber === currentPage).map(sig => (
                                             <div
                                                 key={sig.id}
                                                 className={cn(
-                                                    "absolute border-2 border-dashed border-primary cursor-move group touch-none select-none",
-                                                    (draggedSignature === sig.id || resizingSignature === sig.id) && "border-solid shadow-2xl ring-4 ring-primary/30 z-50"
+                                                    "absolute border-2 border-dashed border-primary cursor-move group transition-shadow",
+                                                    activeId === sig.id && "border-solid shadow-xl ring-4 ring-primary/20 z-50"
                                                 )}
                                                 style={{
-                                                    left: `${sig.x * scale}px`,
-                                                    top: `${sig.y * scale}px`,
-                                                    width: `${sig.width * scale}px`,
-                                                    height: `${sig.height * scale}px`,
-                                                    zIndex: draggedSignature === sig.id ? 100 : 10,
+                                                    left: sig.x * scale,
+                                                    top: sig.y * scale,
+                                                    width: sig.width * scale,
+                                                    height: sig.height * scale,
                                                 }}
-                                                onMouseDown={(e) => handleMouseDown(e, sig.id)}
-                                                onTouchStart={(e) => handleMouseDown(e, sig.id)}
+                                                onMouseDown={(e) => startDragging(e, sig.id)}
+                                                onTouchStart={(e) => startDragging(e, sig.id)}
                                             >
-                                                <img
-                                                    src={sig.dataUrl}
-                                                    alt="Signature"
-                                                    className="w-full h-full object-contain pointer-events-none"
-                                                />
+                                                <img src={sig.dataUrl} className="w-full h-full object-contain pointer-events-none" alt="Signature" />
 
-                                                {/* Delete Button - Always Visible */}
+                                                {/* Controls */}
                                                 <Button
                                                     variant="destructive"
                                                     size="icon"
-                                                    className="absolute -top-3 -right-3 h-7 w-7 sm:h-6 sm:w-6 rounded-full shadow-lg z-10"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteSignature(sig.id);
-                                                    }}
+                                                    className="absolute -top-3 -right-3 h-6 w-6 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(sig.id); }}
                                                 >
-                                                    <X className="h-4 w-4 sm:h-3 sm:w-3" />
+                                                    <X className="h-3 w-3" />
                                                 </Button>
-
-                                                {/* Drag Indicator - Always Visible */}
-                                                <div className="absolute -top-3 -left-3 h-7 w-7 sm:h-6 sm:w-6 bg-slate-900 rounded-full shadow-lg z-10 flex items-center justify-center border-2 border-white cursor-move">
-                                                    <Move className="h-4 w-4 sm:h-3 sm:w-3 text-white" />
+                                                <div className="absolute -top-3 -left-3 h-6 w-6 bg-slate-900 text-white rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                                                    <Move className="h-3 w-3" />
                                                 </div>
-
-                                                {/* Resize Handle - Always Visible */}
                                                 <div
-                                                    className="absolute -bottom-3 -right-3 h-8 w-8 sm:h-7 sm:w-7 bg-primary rounded-full cursor-nwse-resize shadow-lg z-10 flex items-center justify-center touch-none border-2 border-white"
-                                                    onMouseDown={(e) => handleResizeStart(e, sig.id)}
-                                                    onTouchStart={(e) => handleResizeStart(e, sig.id)}
+                                                    className="absolute -bottom-3 -right-3 h-7 w-7 bg-primary text-white rounded-full flex items-center justify-center cursor-nwse-resize border-2 border-white shadow-lg touch-none"
+                                                    onMouseDown={(e) => startResizing(e, sig.id)}
+                                                    onTouchStart={(e) => startResizing(e, sig.id)}
                                                 >
-                                                    <Maximize2 className="h-4 w-4 text-white" />
+                                                    <Maximize2 className="h-4 w-4" />
                                                 </div>
                                             </div>
                                         ))}
@@ -395,181 +298,74 @@ const PdfSignatureEditor = ({
                         </div>
                     </div>
 
-                    {/* Side Panel (Desktop Only) */}
-                    {!isMobile && (
-                        <div className="w-96 flex flex-col bg-white">
-                            <div className="p-6 space-y-4 flex-1 overflow-y-auto">
-                                <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest">
-                                    Signature Tools
-                                </h3>
+                    {/* Action Bar / Side Panel */}
+                    <div className={cn(
+                        "bg-white flex flex-col transition-all border-l",
+                        isMobile ? "p-4 border-t" : "w-80"
+                    )}>
+                        <div className="p-6 space-y-4 flex-1">
+                            {!isMobile && <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Toolbar</h3>}
 
-                                <Button
-                                    onClick={() => setIsDrawerOpen(true)}
-                                    className="w-full bg-primary hover:bg-primary/90 text-slate-950 font-bold h-12"
-                                >
-                                    <PenTool className="h-4 w-4 mr-2" />
-                                    Draw New Signature
-                                </Button>
+                            <Button
+                                className="w-full h-12 bg-primary hover:bg-primary/90 text-slate-950 font-bold shadow-lg"
+                                onClick={() => setIsDrawerOpen(true)}
+                            >
+                                <PenTool className="h-4 w-4 mr-2" />
+                                New Signature
+                            </Button>
 
-                                {signatures.length > 0 && (
-                                    <>
-                                        <Separator />
-                                        <div className="space-y-2">
-                                            <p className="text-xs font-bold text-slate-500">
-                                                Placed Signatures ({signatures.length})
-                                            </p>
-                                            <div className="max-h-48 overflow-y-auto space-y-2">
-                                                {signatures.map((sig) => (
-                                                    <div
-                                                        key={sig.id}
-                                                        className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border"
-                                                    >
-                                                        <img
-                                                            src={sig.dataUrl}
-                                                            alt="Signature"
-                                                            className="h-8 w-16 object-contain bg-white border rounded"
-                                                        />
-                                                        <span className="text-xs flex-1">Page {sig.pageNumber}</span>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6"
-                                                            onClick={() => handleDeleteSignature(sig.id)}
-                                                        >
-                                                            <Trash2 className="h-3 w-3 text-red-500" />
-                                                        </Button>
-                                                    </div>
-                                                ))}
+                            {!isMobile && signatures.length > 0 && (
+                                <div className="pt-4 space-y-2">
+                                    <p className="text-[10px] font-black uppercase text-slate-400">Recent Layers</p>
+                                    <div className="max-h-60 overflow-y-auto pr-2 space-y-2">
+                                        {signatures.map(sig => (
+                                            <div key={sig.id} className="flex items-center justify-between p-2 bg-slate-50 border rounded-lg">
+                                                <img src={sig.dataUrl} className="h-6 w-12 object-contain" alt="Sig" />
+                                                <span className="text-[10px] font-bold">Page {sig.pageNumber}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDelete(sig.id)}>
+                                                    <Trash2 className="h-3 w-3 text-red-500" />
+                                                </Button>
                                             </div>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            <Separator />
-
-                            <div className="p-6 space-y-3 bg-slate-50">
-                                <Button
-                                    onClick={handleSubmit}
-                                    disabled={signatures.length === 0 || isSubmitting}
-                                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold h-12"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Submitting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Check className="h-4 w-4 mr-2" />
-                                            Submit Signed Document
-                                        </>
-                                    )}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => onOpenChange(false)}
-                                    disabled={isSubmitting}
-                                    className="w-full"
-                                >
-                                    Cancel
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Mobile: Bottom Action Bar */}
-                    {isMobile && (
-                        <div className="p-3 bg-white border-t space-y-2 shrink-0 z-10 font-[inherit]">
-                            {signatures.length > 0 && (
-                                <div className="flex items-center justify-between text-xs text-slate-600 px-1">
-                                    <span className="font-bold">{signatures.length} signature(s) placed</span>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
-
-                            <div className="flex gap-2">
-                                <Button
-                                    onClick={() => setIsDrawerOpen(true)}
-                                    className="flex-1 bg-primary hover:bg-primary/90 text-slate-950 font-bold h-12"
-                                >
-                                    <PenTool className="h-4 w-4 mr-2" />
-                                    {signatures.length > 0 ? "Add More" : "Draw Signature"}
-                                </Button>
-
-                                <Button
-                                    onClick={handleSubmit}
-                                    disabled={signatures.length === 0 || isSubmitting}
-                                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-bold h-12"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Submitting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Check className="h-4 w-4 mr-2" />
-                                            Submit
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
                         </div>
-                    )}
+
+                        <div className="p-4 bg-slate-50 border-t space-y-3">
+                            <Button
+                                className="w-full h-12 bg-slate-900 hover:bg-slate-800 text-white font-black"
+                                onClick={handleSubmit}
+                                disabled={signatures.length === 0 || isSubmitting}
+                            >
+                                {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : "SUBMIT & SIGN"}
+                            </Button>
+                            <Button variant="outline" className="w-full" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Signature Drawing Drawer (Mobile & Desktop) */}
+                {/* Signature Drawing Modal */}
                 {isDrawerOpen && (
-                    <div
-                        className="fixed inset-0 bg-black/50 z-[100] flex items-end lg:items-center lg:justify-center"
-                        onClick={() => setIsDrawerOpen(false)}
-                    >
-                        <div
-                            className="bg-white w-full lg:w-[500px] rounded-t-2xl lg:rounded-2xl shadow-2xl animate-in slide-in-from-bottom lg:slide-in-from-bottom-0 duration-300"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-4 sm:p-6 space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-black uppercase tracking-tight">Draw Your Signature</h3>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => setIsDrawerOpen(false)}
-                                        className="h-8 w-8"
-                                    >
-                                        <X className="h-5 w-5" />
-                                    </Button>
-                                </div>
-
-                                <div className="border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-inner">
-                                    <SignatureCanvas
-                                        ref={signatureCanvasRef}
-                                        canvasProps={{
-                                            width: isMobile ? Math.min(window.innerWidth - 64, 450) : 450,
-                                            height: 220,
-                                            className: "signature-canvas touch-action-none"
-                                        }}
-                                        backgroundColor="rgb(255, 255, 255)"
-                                    />
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleClearCanvas}
-                                        className="flex-1 h-12 font-bold"
-                                    >
-                                        <RotateCcw className="h-4 w-4 mr-2" />
-                                        Clear
-                                    </Button>
-                                    <Button
-                                        onClick={handleSaveSignature}
-                                        className="flex-1 bg-india-green hover:bg-india-green/90 text-white h-12 font-bold"
-                                    >
-                                        <Check className="h-4 w-4 mr-2" />
-                                        Add to Document
-                                    </Button>
-                                </div>
+                    <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-end lg:items-center lg:justify-center" onClick={() => setIsDrawerOpen(false)}>
+                        <div className="bg-white w-full lg:w-[500px] rounded-t-2xl lg:rounded-2xl shadow-2xl p-6 space-y-6" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between">
+                                <h4 className="font-black uppercase tracking-tight">Draw Signature</h4>
+                                <Button variant="ghost" size="icon" onClick={() => setIsDrawerOpen(false)}><X className="h-5 w-5" /></Button>
+                            </div>
+                            <div className="border-4 border-slate-100 rounded-2xl overflow-hidden bg-white shadow-inner">
+                                <SignatureCanvas
+                                    ref={signatureCanvasRef}
+                                    canvasProps={{
+                                        width: isMobile ? window.innerWidth - 64 : 450,
+                                        height: 250,
+                                        className: "signature-canvas"
+                                    }}
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <Button variant="outline" className="flex-1 h-12 font-bold" onClick={handleClearCanvas}><RotateCcw className="h-4 w-4 mr-2" />Reset</Button>
+                                <Button className="flex-1 h-12 bg-india-green hover:bg-india-green/90 text-white font-bold" onClick={handleSaveSignature}><Check className="h-4 w-4 mr-2" />Apply</Button>
                             </div>
                         </div>
                     </div>

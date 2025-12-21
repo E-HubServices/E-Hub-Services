@@ -46,11 +46,13 @@ export async function embedSignaturesInPdf(
 
         // Convert coordinates (PDF coordinates start from bottom-left)
         // Our UI coordinates start from top-left, so we need to flip Y
+        // Final PDF Y = PageHeight - UI_Y - SignatureHeight
+        const pdfX = signature.x;
         const pdfY = pageHeight - signature.y - signature.height;
 
         // Draw the signature image
         page.drawImage(signatureImage, {
-            x: signature.x,
+            x: pdfX,
             y: pdfY,
             width: signature.width,
             height: signature.height,
